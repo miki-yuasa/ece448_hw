@@ -6,7 +6,10 @@ each "raise RuntimeError" line with a line that performs the function specified 
 function's docstring.
 """
 
+from typing import Literal
 import numpy as np
+from numpy import ndarray
+import collections
 
 
 def joint_distribution_of_word_counts(
@@ -23,11 +26,37 @@ def joint_distribution_of_word_counts(
       X0 is the number of times that word1 occurs in a given text,
       X1 is the number of times that word2 occurs in the same text.
     """
-    raise RuntimeError("You need to write this part!")
+
+    num_word_pairs: list[tuple[int, int]] = []
+
+    nums_word0: list[int] = []
+    nums_word1: list[int] = []
+
+    for text in texts:
+        num_word0: int = text.count(word0)
+        num_word1: int = text.count(word1)
+
+        num_word_pairs.append((num_word0, num_word1))
+        nums_word0.append(num_word0)
+        nums_word1.append(num_word1)
+
+    num_word_pair_counter = collections.Counter(num_word_pairs)
+
+    most_common_pairs: list[
+        tuple[tuple[int, int], int]
+    ] = num_word_pair_counter.most_common()
+
+    Pjoint_tmp: np.ndarray = np.zeros([max(nums_word0) + 1, max(nums_word1) + 1])
+
+    for pair, count in most_common_pairs:
+        Pjoint_tmp[*pair] = count
+
+    Pjoint: np.ndarray = Pjoint_tmp / Pjoint_tmp.sum()
+
     return Pjoint
 
 
-def marginal_distribution_of_word_counts(Pjoint, index):
+def marginal_distribution_of_word_counts(Pjoint: ndarray, index: Literal[0, 1]):
     """
     Parameters:
     Pjoint (numpy array) - Pjoint[m,n] = P(X0=m,X1=n), where
@@ -40,11 +69,13 @@ def marginal_distribution_of_word_counts(Pjoint, index):
       if index==0, then X is X0
       if index==1, then X is X1
     """
-    raise RuntimeError("You need to write this part!")
+    Pmarginal: np.ndarray = (
+        np.sum(Pjoint, axis=1) if index == 0 else np.sum(Pjoint, axis=0)
+    )
     return Pmarginal
 
 
-def conditional_distribution_of_word_counts(Pjoint, Pmarginal):
+def conditional_distribution_of_word_counts(Pjoint: ndarray, Pmarginal: ndarray):
     """
     Parameters:
     Pjoint (numpy array) - Pjoint[m,n] = P(X0=m,X1=n), where
@@ -55,7 +86,7 @@ def conditional_distribution_of_word_counts(Pjoint, Pmarginal):
     Outputs:
     Pcond (numpy array) - Pcond[m,n] = P(X1=n|X0=m)
     """
-    raise RuntimeError("You need to write this part!")
+    Pcond: ndarray = (Pjoint.transpose() / Pmarginal).transpose()
     return Pcond
 
 
