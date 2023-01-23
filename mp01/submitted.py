@@ -6,10 +6,11 @@ each "raise RuntimeError" line with a line that performs the function specified 
 function's docstring.
 """
 
-from typing import Literal
+from typing import Callable, Literal
 import numpy as np
 from numpy import ndarray
 import collections
+import itertools
 
 
 def joint_distribution_of_word_counts(
@@ -56,7 +57,9 @@ def joint_distribution_of_word_counts(
     return Pjoint
 
 
-def marginal_distribution_of_word_counts(Pjoint: ndarray, index: Literal[0, 1]):
+def marginal_distribution_of_word_counts(
+    Pjoint: ndarray, index: Literal[0, 1]
+) -> ndarray:
     """
     Parameters:
     Pjoint (numpy array) - Pjoint[m,n] = P(X0=m,X1=n), where
@@ -75,7 +78,9 @@ def marginal_distribution_of_word_counts(Pjoint: ndarray, index: Literal[0, 1]):
     return Pmarginal
 
 
-def conditional_distribution_of_word_counts(Pjoint: ndarray, Pmarginal: ndarray):
+def conditional_distribution_of_word_counts(
+    Pjoint: ndarray, Pmarginal: ndarray
+) -> ndarray:
     """
     Parameters:
     Pjoint (numpy array) - Pjoint[m,n] = P(X0=m,X1=n), where
@@ -90,7 +95,7 @@ def conditional_distribution_of_word_counts(Pjoint: ndarray, Pmarginal: ndarray)
     return Pcond
 
 
-def mean_from_distribution(P: ndarray):
+def mean_from_distribution(P: ndarray) -> float:
     """
     Parameters:
     P (numpy array) - P[n] = P(X=n)
@@ -102,7 +107,7 @@ def mean_from_distribution(P: ndarray):
     return mu
 
 
-def variance_from_distribution(P: ndarray):
+def variance_from_distribution(P: ndarray) -> float:
     """
     Parameters:
     P (numpy array) - P[n] = P(X=n)
@@ -117,7 +122,7 @@ def variance_from_distribution(P: ndarray):
     return var
 
 
-def covariance_from_distribution(P: ndarray):
+def covariance_from_distribution(P: ndarray) -> float:
     """
     Parameters:
     P (numpy array) - P[m,n] = P(X0=m,X1=n)
@@ -140,7 +145,7 @@ def covariance_from_distribution(P: ndarray):
     return covar
 
 
-def expectation_of_a_function(P, f):
+def expectation_of_a_function(P: ndarray, f: Callable) -> float:
     """
     Parameters:
     P (numpy array) - joint distribution, P[m,n] = P(X0=m,X1=n)
@@ -152,5 +157,20 @@ def expectation_of_a_function(P, f):
     Output:
     expected (float) - the expected value, E[f(X0,X1)]
     """
-    raise RuntimeError("You need to write this part!")
+
+    num_X0: int
+    num_X1: int
+
+    num_X0, num_X1 = P.shape
+
+    X0: list[int] = list(range(num_X0))
+    X1: list[int] = list(range(num_X1))
+
+    F: ndarray = np.zeros(P.shape)
+
+    for x0, x1 in itertools.product(X0, X1):
+        F[x0, x1] = f(x0, x1)
+
+    expected: float = np.sum(F * P)
+
     return expected
