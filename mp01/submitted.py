@@ -90,7 +90,7 @@ def conditional_distribution_of_word_counts(Pjoint: ndarray, Pmarginal: ndarray)
     return Pcond
 
 
-def mean_from_distribution(P):
+def mean_from_distribution(P: ndarray):
     """
     Parameters:
     P (numpy array) - P[n] = P(X=n)
@@ -98,11 +98,11 @@ def mean_from_distribution(P):
     Outputs:
     mu (float) - the mean of X
     """
-    raise RuntimeError("You need to write this part!")
+    mu: float = P @ np.array(range(P.size))
     return mu
 
 
-def variance_from_distribution(P):
+def variance_from_distribution(P: ndarray):
     """
     Parameters:
     P (numpy array) - P[n] = P(X=n)
@@ -110,11 +110,14 @@ def variance_from_distribution(P):
     Outputs:
     var (float) - the variance of X
     """
-    raise RuntimeError("You need to write this part!")
+    mu: float = P @ np.array(range(P.size))
+
+    var: ndarray = (np.array(range(P.size)) - mu) ** 2 @ P
+
     return var
 
 
-def covariance_from_distribution(P):
+def covariance_from_distribution(P: ndarray):
     """
     Parameters:
     P (numpy array) - P[m,n] = P(X0=m,X1=n)
@@ -122,7 +125,18 @@ def covariance_from_distribution(P):
     Outputs:
     covar (float) - the covariance of X0 and X1
     """
-    raise RuntimeError("You need to write this part!")
+
+    combination_products: ndarray = np.array(range(P.shape[0])).reshape(
+        -1, 1
+    ) @ np.array(range(P.shape[1])).reshape(1, -1)
+
+    P0: ndarray = marginal_distribution_of_word_counts(P, 0)
+    P1: ndarray = marginal_distribution_of_word_counts(P, 1)
+
+    covar: float = np.sum(P * combination_products) - mean_from_distribution(
+        P0
+    ) * mean_from_distribution(P1)
+
     return covar
 
 
