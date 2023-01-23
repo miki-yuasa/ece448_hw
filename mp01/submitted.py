@@ -50,7 +50,7 @@ def joint_distribution_of_word_counts(
     Pjoint_tmp: np.ndarray = np.zeros([max(nums_word0) + 1, max(nums_word1) + 1])
 
     for pair, count in most_common_pairs:
-        Pjoint_tmp[*pair] = count
+        Pjoint_tmp[pair[0], pair[1]] = count
 
     Pjoint: np.ndarray = Pjoint_tmp / Pjoint_tmp.sum()
 
