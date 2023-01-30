@@ -232,8 +232,15 @@ def remove_stopwords(
     nonstop: dict[Literal["pos", "neg"], Counter[str]] = copy.deepcopy(frequency)
 
     for word in stopwords:
-        del nonstop["pos"][word]
-        del nonstop["neg"][word]
+        try:
+            del nonstop["pos"][word]
+        except KeyError:
+            pass
+
+        try:
+            del nonstop["neg"][word]
+        except KeyError:
+            pass
 
     return nonstop
 
@@ -257,11 +264,41 @@ def laplace_smoothing(
     in the training data for class y.
     """
 
-    likelihood_pos: dict[str, float] = {word: count for word, count in nonstop["pos"]}
-    raise RuntimeError("You need to write this part!")
+    num_tokens_pos: int = sum(nonstop["pos"].values())
+    num_wordtypes_pos: int = len(nonstop["pos"])
+    num_tokens_neg: int = sum(nonstop["neg"].values())
+    num_wordtypes_neg: int = len(nonstop["neg"])
+
+    likelihood_pos: dict[str, float] = {
+        word: (count + smoothness)
+        / (num_tokens_pos + smoothness * (num_wordtypes_pos + 1))
+        for word, count in nonstop["pos"].items()
+    }
+    likelihood_pos["OOV"] = smoothness / (
+        num_tokens_pos + smoothness * (num_wordtypes_pos + 1)
+    )
+    likelihood_neg: dict[str, float] = {
+        word: (count + smoothness)
+        / (num_tokens_neg + smoothness * (num_wordtypes_neg + 1))
+        for word, count in nonstop["neg"].items()
+    }
+    likelihood_neg["OOV"] = smoothness / (
+        num_tokens_neg + smoothness * (num_wordtypes_neg + 1)
+    )
+
+    likelihood: dict[Literal["pos", "neg"], dict[str, float]] = {
+        "pos": likelihood_pos,
+        "neg": likelihood_neg,
+    }
+
+    return likelihood
 
 
-def naive_bayes(texts, likelihood, prior):
+def naive_bayes(
+    texts: list[list[str]],
+    likelihood: dict[Literal["pos", "neg"], dict[str, float]],
+    prior: float,
+) -> list[Literal["pos", "neg", "undecided"]]:
     """
     Parameters:
     texts (list of lists) -
@@ -275,10 +312,50 @@ def naive_bayes(texts, likelihood, prior):
     hypotheses (list)
         - hypotheses[i] = class label for the i'th text
     """
-    raise RuntimeError("You need to write this part!")
+
+    hypotheses: list[Literal["pos", "neg", "undecided"]] = []
+
+    for text in texts:
+        likelihood_probs: list[float] = []
+        for word in text:
+            if word in stopwords:
+                pass
+            else:
+                likelihood_pos: float
+                likelihood_neg: float
+                try:
+                    likelihood_pos = likelihood["pos"][word]
+                except KeyError:
+                    likelihood_pos = likelihood["pos"]["OOV"]
+
+                try:
+                    likelihood_neg = likelihood["neg"][word]
+                except KeyError:
+                    likelihood_neg = likelihood["neg"]["OOV"]
+
+                likelihood_probs.append(likelihood_pos / likelihood_neg)
+
+        probability: float = np.log(prior / (1 - prior)) + np.sum(
+            np.log(np.array(likelihood_probs))
+        )
+
+        if probability > 0:
+            hypotheses.append("pos")
+        elif probability < 0:
+            hypotheses.append("neg")
+        else:
+            hypotheses.append("undecided")
+
+    return hypotheses
 
 
-def optimize_hyperparameters(texts, labels, nonstop, priors, smoothnesses):
+def optimize_hyperparameters(
+    texts: list[list[str]],
+    labels: list[Literal["pos", "neg"]],
+    nonstop: dict[Literal["pos", "neg"], Counter[str]],
+    priors: list[float],
+    smoothnesses: list[float],
+) -> np.ndarray:
     """
     Parameters:
     texts (list of lists) - dev set texts
@@ -297,4 +374,24 @@ def optimize_hyperparameters(texts, labels, nonstop, priors, smoothnesses):
         - accuracies[m,n] = dev set accuracy achieved using the
           m'th candidate prior and the n'th candidate smoothness
     """
-    raise RuntimeError("You need to write this part!")
+
+    accuracies: np.ndarray = np.empty([len(priors), len(smoothnesses)])
+
+    num_labels: int = len(labels)
+
+    for i, prior in enumerate(priors):
+        for j, smoothness in enumerate(smoothnesses):
+            likelihood: dict[
+                Literal["pos", "neg"], dict[str, float]
+            ] = laplace_smoothing(nonstop, smoothness)
+            hypotheses: list[Literal["pos", "neg", "undecided"]] = naive_bayes(
+                texts, likelihood, prior
+            )
+            count_correct: int = 0
+            for (y, yhat) in zip(labels, hypotheses):
+                if y == yhat:
+                    count_correct += 1
+
+            accuracies[i, j] = count_correct / num_labels
+
+    return accuracies
