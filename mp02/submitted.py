@@ -209,14 +209,16 @@ def create_frequency_table(
     neg_counter = Counter(chain.from_iterable(train["neg"]))
     pos_counter = Counter(chain.from_iterable(train["pos"]))
 
-    frequency: dict[Literal["pos", "neg"], Counter[str, int]] = {
+    frequency: dict[Literal["pos", "neg"], Counter[str]] = {
         "neg": neg_counter,
         "pos": pos_counter,
     }
     return frequency
 
 
-def remove_stopwords(frequency: dict[Literal["pos", "neg"], Counter[str, int]]):
+def remove_stopwords(
+    frequency: dict[Literal["pos", "neg"], Counter[str]]
+) -> dict[Literal["pos", "neg"], Counter[str]]:
     """
     Parameters:
     frequency (dict of Counters)
@@ -227,7 +229,7 @@ def remove_stopwords(frequency: dict[Literal["pos", "neg"], Counter[str, int]]):
         - nonstop[y][x] = frequency of word x in texts of class y,
           but only if x is not a stopword.
     """
-    nonstop: dict[Literal["pos", "neg"], Counter[str, int]] = copy.deepcopy(frequency)
+    nonstop: dict[Literal["pos", "neg"], Counter[str]] = copy.deepcopy(frequency)
 
     for word in stopwords:
         del nonstop["pos"][word]
@@ -236,7 +238,9 @@ def remove_stopwords(frequency: dict[Literal["pos", "neg"], Counter[str, int]]):
     return nonstop
 
 
-def laplace_smoothing(nonstop, smoothness):
+def laplace_smoothing(
+    nonstop: dict[Literal["pos", "neg"], Counter[str]], smoothness: float
+) -> dict[Literal["pos", "neg"], dict[str, float]]:
     """
     Parameters:
     nonstop (dict of Counters)
@@ -252,6 +256,8 @@ def laplace_smoothing(nonstop, smoothness):
     Be careful that your vocabulary only counts words that occurred at least once
     in the training data for class y.
     """
+
+    likelihood_pos: dict[str, float] = {word: count for word, count in nonstop["pos"]}
     raise RuntimeError("You need to write this part!")
 
 
