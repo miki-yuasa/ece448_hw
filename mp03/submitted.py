@@ -6,8 +6,11 @@ each "raise RuntimeError" line with a line that performs the function specified 
 function's docstring.
 '''
 import numpy as np
+from numpy import ndarray
+from numpy import linalg as LA
 
-def k_nearest_neighbors(image, train_images, train_labels, k):
+
+def k_nearest_neighbors(image: ndarray, train_images: ndarray, train_labels: ndarray, k: int) -> tuple[ndarray, ndarray]:
     '''
     Parameters:
     image - one image
@@ -20,11 +23,18 @@ def k_nearest_neighbors(image, train_images, train_labels, k):
     labels - 1-D array of k labels corresponding to the k images
     '''
 
+    distance: ndarray = train_images - image
+    distance_norm: ndarray = LA.norm(distance, axis=1)
 
-    raise RuntimeError('You need to write this part!')
+    idx: ndarray = np.argpartition(distance_norm, k)
+
+    neighbors: ndarray = train_images[idx[:k]]
+    lablels: ndarray = train_labels[idx[:k]]
+
+    return neighbors, lablels
 
 
-def classify_devset(dev_images, train_images, train_labels, k):
+def classify_devset(dev_images: ndarray, train_images: ndarray, train_labels: ndarray, k: int) -> tuple[list[int], list[int]]:
     '''
     Parameters:
     dev_images (list) -M images
@@ -36,11 +46,31 @@ def classify_devset(dev_images, train_images, train_labels, k):
     hypotheses (list) -one majority-vote labels for each of the M dev images
     scores (list) -number of nearest neighbors that voted for the majority class of each dev image
     '''
-    
-    raise RuntimeError('You need to write this part!')
+
+    hypotheses: list[int] = []
+    scores: list[int] = []
+
+    for image in dev_images:
+        labels: ndarray
+        _, labels = k_nearest_neighbors(
+            image, train_images, train_labels, k)
+
+        unique: ndarray
+        counts: ndarray
+        unique, counts = np.unique(labels, return_counts=True)
+        hypothesis_indx: list[int] = [
+            i for i, x in enumerate(counts) if x == max(counts)]
+
+        hypothesis: bool = unique[np.argmax(counts)] if len(
+            hypothesis_indx) == 1 else False
+
+        hypotheses.append(int(hypothesis))
+        scores.append(np.max(counts))
+
+    return hypotheses, scores
 
 
-def confusion_matrix(hypotheses, references):
+def confusion_matrix(hypotheses: list[int], references: ndarray) -> tuple[ndarray, float, float]:
     '''
     Parameters:
     hypotheses (list) - a list of M labels output by the classifier
@@ -54,4 +84,25 @@ def confusion_matrix(hypotheses, references):
     f1(float) - the computed f1 score from the matrix
     '''
 
-    raise RuntimeError('You need to write this part!')
+    tn: int = 0
+    fp: int = 0
+    fn: int = 0
+    tp: int = 0
+
+    for hypo, ref in zip(hypotheses, references.tolist()):
+        if hypo == 0 and ref == 0:
+            tn += 1
+        elif hypo == 1 and ref == 0:
+            fp += 1
+        elif hypo == 0 and ref == 1:
+            fn += 1
+        else:
+            tp += 1
+
+    confusions: ndarray = np.array([[tn, fp], [fn, tp]])
+    precision: float = tp/(tp+fp)
+    recall: float = tp/(tp+fn)
+    accuracy: float = (tp+tn)/(tp+tn+fp+fn)
+    f1 = 2/(1/recall+1/precision)
+
+    return confusions, accuracy, f1
