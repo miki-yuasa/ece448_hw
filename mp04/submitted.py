@@ -12,11 +12,16 @@ If you are not sure how to use PyTorch, you may want to take a look at the tutor
 
 import torch
 import torch.nn as nn
-
+from torch import Tensor
+import torch.nn.functional as F
+from torch.utils.data.dataloader import DataLoader
+from torch.optim import Adam
 
 """
 1.  Build a neural network class.
 """
+
+
 class NeuralNet(torch.nn.Module):
     def __init__(self):
         """
@@ -25,10 +30,11 @@ class NeuralNet(torch.nn.Module):
         super().__init__()
         ################# Your Code Starts Here #################
 
-        raise NotImplementedError("You need to write this part!")
+        self.fc1 = nn.Linear(2883, 200)
+        self.out = nn.Linear(200, 5)
         ################## Your Code Ends here ##################
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         """
         Perform a forward pass through your neural net.
 
@@ -40,14 +46,17 @@ class NeuralNet(torch.nn.Module):
         """
         ################# Your Code Starts Here #################
 
+        out_1: Tensor = F.elu(self.fc1(x))
+        y: Tensor = F.elu(self.out(out_1))
         return y
-        raise NotImplementedError("You need to write this part!")
         ################## Your Code Ends here ##################
 
 
 """
 2. Train your model.
 """
+
+
 def fit(train_dataloader, test_dataloader, epochs):
     """
     The autograder will call this function and measure the accuracy of the returned model.
@@ -64,10 +73,9 @@ def fit(train_dataloader, test_dataloader, epochs):
         loss_fn:            your selected loss function
         optimizer:          your selected optimizer
     """
-    
+
     # Create an instance of NeuralNet, don't modify this line.
     model = NeuralNet()
-
 
     ################# Your Code Starts Here #################
     """
@@ -76,26 +84,36 @@ def fit(train_dataloader, test_dataloader, epochs):
     Please select an appropriate loss function from PyTorch torch.nn module.
     Please select an appropriate optimizer from PyTorch torch.optim module.
     """
-    loss_fn = None
-    optimizer = None
-    raise NotImplementedError("You need to write this part!")
+    lr: float = 1e-3
+    loss_fn = nn.CrossEntropyLoss()
+    optimizer = Adam(model.parameters(), lr, weight_decay=1e-5)
     ################## Your Code Ends here ##################
-
 
     """
     2.2 Train loop
     """
     for epoch in range(epochs):
         print("Epoch #", epoch)
-        train(train_dataloader, model, loss_fn, optimizer)  # You need to write this function.
-        test(test_dataloader, model, loss_fn)  # optional, to monitor the training progress
+        train(
+            train_dataloader, model, loss_fn, optimizer
+        )  # You need to write this function.
+        test(
+            test_dataloader, model, loss_fn
+        )  # optional, to monitor the training progress
     return model, loss_fn, optimizer
 
 
 """
 3. Backward propagation and gradient descent.
 """
-def train(train_dataloader, model, loss_fn, optimizer):
+
+
+def train(
+    train_dataloader: DataLoader,
+    model: NeuralNet,
+    loss_fn: nn.CrossEntropyLoss,
+    optimizer: Adam,
+) -> None:
     """
     Train your neural network.
 
@@ -115,11 +133,17 @@ def train(train_dataloader, model, loss_fn, optimizer):
 
     ################# Your Code Starts Here #################
 
-    raise NotImplementedError("You need to write this part!")
+    model.train()
+    for X, y in train_dataloader:
+        y_pred: Tensor = model(X)
+        loss: Tensor = loss_fn(y_pred, y)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
     ################## Your Code Ends here ##################
 
 
-def test(test_dataloader, model, loss_fn):
+def test(test_dataloader: DataLoader, model: NeuralNet, loss_fn: nn.CrossEntropyLoss):
     """
     This part is optional.
 
