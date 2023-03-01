@@ -20,7 +20,8 @@ files and classes when code is run, so be careful to not modify anything else.
 
 import queue
 from queue import Queue
-from typing import NamedTuple
+from heapq import heapify, heappush, heappop
+from typing import NamedTuple, Union
 from maze import Maze
 
 Location = tuple[int, int]
@@ -74,7 +75,14 @@ def bfs(maze: Maze):
     return path
 
 
-def astar_single(maze):
+class AStarNode(NamedTuple):
+    f: int
+    g: int
+    loc: Location
+    parent: Union["AStarNode", None]
+
+
+def astar_single(maze: Maze):
     """
     Runs A star for part 2 of the assignment.
 
@@ -87,7 +95,63 @@ def astar_single(maze):
     def manhattan_dist(a: Location, b: Location) -> int:
         return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
-    return []
+    start: Location = maze.start
+    goal: Location = maze.waypoints[0]
+
+    open: list[AStarNode] = [AStarNode(manhattan_dist(start, goal), 0, start, None)]
+    heapify(open)
+    closed: list[AStarNode] = []
+
+    while open:
+        n = heappop(open)
+        closed.append(n)
+
+        if n.loc == (3, 12):
+            pass
+
+        if n.loc == goal:
+            break
+        else:
+            pass
+
+        for edge in maze.neighbors(*n.loc):
+            g: int = n.g + 1
+            h: int = manhattan_dist(edge, goal)
+            f: int = g + h
+
+            close_locs: list[Location] = [n.loc for n in closed]
+            open_locs: list[Location] = [n.loc for n in open]
+
+            if edge in close_locs:
+                closed_ind: int = close_locs.index(edge)
+                m: AStarNode = closed[closed_ind]
+
+                if f < m.f:
+                    closed.pop(closed_ind)
+                    heappush(open, AStarNode(f, g, edge, n))
+                else:
+                    pass
+
+            elif edge in open_locs:
+                open_ind: int = open_locs.index(edge)
+                m: AStarNode = open[open_ind]
+                if f < m.f:
+                    open.pop(open_ind)
+                    open.append(AStarNode(f, g, edge, n))
+                else:
+                    pass
+            else:
+                heappush(open, AStarNode(f, g, edge, n))
+
+    path = []
+    current: AStarNode | None = closed[-1]
+    while current is not None:
+        path.append(current.loc)
+        current = current.parent
+
+    path.reverse()
+
+    return path
 
 
 # This function is for Extra Credits, please begin this part after finishing previous two functions
