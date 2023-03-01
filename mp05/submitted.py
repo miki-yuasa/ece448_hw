@@ -26,11 +26,6 @@ from maze import Maze
 Location = tuple[int, int]
 
 
-class Node(NamedTuple):
-    loc: Location
-    parent: Location | None
-
-
 def bfs(maze: Maze):
     """
     Runs BFS for part 1 of the assignment.
@@ -40,6 +35,10 @@ def bfs(maze: Maze):
     @return path: a list of tuples containing the coordinates of each state in the computed path
     """
     # TODO: Implement bfs function
+
+    class Node(NamedTuple):
+        loc: Location
+        parent: Location | None
 
     q: Queue[Node] = Queue()
     explored_locs: list[Location] = [maze.start]
@@ -84,6 +83,9 @@ def astar_single(maze):
     @return path: a list of tuples containing the coordinates of each state in the computed path
     """
     # TODO: Implement astar_single
+
+    def manhattan_dist(a: Location, b: Location) -> int:
+        return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
     return []
 
