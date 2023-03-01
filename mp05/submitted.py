@@ -18,7 +18,13 @@ files and classes when code is run, so be careful to not modify anything else.
 # maze is a Maze object based on the maze from the file specified by input filename
 # searchMethod is the search method specified by --method flag (bfs,dfs,astar,astar_multi)
 
-def bfs(maze):
+import queue
+from queue import Queue
+from typing import NamedTuple
+from maze import Maze
+
+
+def bfs(maze: Maze):
     """
     Runs BFS for part 1 of the assignment.
 
@@ -26,9 +32,45 @@ def bfs(maze):
 
     @return path: a list of tuples containing the coordinates of each state in the computed path
     """
-    #TODO: Implement bfs function
+    # TODO: Implement bfs function
 
-    return []
+    class Node(NamedTuple):
+        loc: tuple[int, int]
+        parent: tuple[int, int] | None
+
+    q: Queue[Node] = Queue()
+    explored_locs: list[tuple[int, int]] = [maze.start]
+    explored: list[Node] = [Node(maze.start, None)]
+    q.put(Node(maze.start, None))
+
+    while not q.empty():
+        v = q.get()
+        for edge in maze.neighbors(*v.loc):
+            if edge not in explored_locs:
+                w = Node(edge, v.loc)
+                explored_locs.append(edge)
+                explored.append(w)
+                q.put(w)
+            else:
+                pass
+
+    goal: tuple[int, int] = maze.waypoints[0]
+    path: list[tuple[int, int]] = [goal]
+    loc: tuple[int, int] = goal
+    for _ in range(len(explored_locs)):
+        loc_ind:int = explored_locs.index(loc)
+        node:Node = explored[loc_ind]
+        path.append(node.parent)
+        loc = node.parent
+
+        if loc == maze.start:
+            break
+        else:
+            pass
+
+    path.reverse()
+    return path
+
 
 def astar_single(maze):
     """
@@ -38,9 +80,10 @@ def astar_single(maze):
 
     @return path: a list of tuples containing the coordinates of each state in the computed path
     """
-    #TODO: Implement astar_single
+    # TODO: Implement astar_single
 
     return []
+
 
 # This function is for Extra Credits, please begin this part after finishing previous two functions
 def astar_multiple(maze):
