@@ -23,6 +23,13 @@ from queue import Queue
 from typing import NamedTuple
 from maze import Maze
 
+Location = tuple[int, int]
+
+
+class Node(NamedTuple):
+    loc: Location
+    parent: Location | None
+
 
 def bfs(maze: Maze):
     """
@@ -34,12 +41,8 @@ def bfs(maze: Maze):
     """
     # TODO: Implement bfs function
 
-    class Node(NamedTuple):
-        loc: tuple[int, int]
-        parent: tuple[int, int] | None
-
     q: Queue[Node] = Queue()
-    explored_locs: list[tuple[int, int]] = [maze.start]
+    explored_locs: list[Location] = [maze.start]
     explored: list[Node] = [Node(maze.start, None)]
     q.put(Node(maze.start, None))
 
@@ -54,12 +57,12 @@ def bfs(maze: Maze):
             else:
                 pass
 
-    goal: tuple[int, int] = maze.waypoints[0]
-    path: list[tuple[int, int]] = [goal]
-    loc: tuple[int, int] = goal
+    goal: Location = maze.waypoints[0]
+    path: list[Location] = [goal]
+    loc: Location = goal
     for _ in range(len(explored_locs)):
-        loc_ind:int = explored_locs.index(loc)
-        node:Node = explored[loc_ind]
+        loc_ind: int = explored_locs.index(loc)
+        node: Node = explored[loc_ind]
         path.append(node.parent)
         loc = node.parent
 
