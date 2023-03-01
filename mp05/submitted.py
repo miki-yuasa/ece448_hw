@@ -21,10 +21,14 @@ files and classes when code is run, so be careful to not modify anything else.
 import queue
 from queue import Queue
 from heapq import heapify, heappush, heappop
+from itertools import product
+import random
 from typing import NamedTuple, Union
 from maze import Maze
 
 Location = tuple[int, int]
+Path = list[Location]
+Edge = tuple[int, int]
 
 
 def bfs(maze: Maze):
@@ -82,6 +86,10 @@ class AStarNode(NamedTuple):
     parent: Union["AStarNode", None]
 
 
+def manhattan_dist(a: Location, b: Location) -> int:
+    return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+
 def astar_single(maze: Maze):
     """
     Runs A star for part 2 of the assignment.
@@ -91,9 +99,6 @@ def astar_single(maze: Maze):
     @return path: a list of tuples containing the coordinates of each state in the computed path
     """
     # TODO: Implement astar_single
-
-    def manhattan_dist(a: Location, b: Location) -> int:
-        return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
     start: Location = maze.start
     goal: Location = maze.waypoints[0]
@@ -154,8 +159,83 @@ def astar_single(maze: Maze):
     return path
 
 
+def find_closest_waypoint(
+    current_location: Location, waypoints: list[Location]
+) -> Location:
+    waypoint_and_dist: list[tuple[int, Location]] = [
+        (manhattan_dist(current_location, waypoint), waypoint) for waypoint in waypoints
+    ]
+    heapify(waypoint_and_dist)
+    _, closest = heappop(waypoint_and_dist)
+
+    return closest
+
+
+def get_mst_length(waypoints: list[Location]) -> int:
+    waypoint_inds = list(range(len(waypoints)))
+    unvisited: list[int] = waypoint_inds
+    visited: list[int] = []
+    mst_length: int = 0
+
+    all_edges: list[Edge] = []
+
+    v = random.choice(unvisited)
+    unvisited.remove(v)
+    visited.append(v)
+
+    while unvisited:
+        waypoint_prod = product(visited, unvisited)
+        edges: list[tuple[int, Edge]] = [
+            (manhattan_dist(waypoints[v], waypoints[u]), (v, u))
+            for (v, u) in waypoint_prod
+        ]
+        heapify(edges)
+        dist, edge = heappop(edges)
+        _, v = edge
+        all_edges.append(edge)
+        visited.append(v)
+        unvisited.remove(v)
+        mst_length += dist
+
+    return mst_length
+
+
+def heuristics(current_location: Location, waypoints: list[Location]) -> int:
+    dist_to_closest_waypoint = manhattan_dist(
+        current_location, find_closest_waypoint(current_location, waypoints)
+    ) if waypoints else 0
+    mst_length = get_mst_length(waypoints) if waypoints else 0
+    h = dist_to_closest_waypoint + mst_length
+    return h
+
+
+def generate_path(node: AStarNode) -> list[Location]:
+    current: AStarNode | None = node
+    path: list[Location] = []
+
+    while current is not None:
+        path.append(current.loc)
+        current = current.parent
+
+    path.reverse()
+    return path
+
+
+def get_unvisited_waypoints(
+    path: list[Location], waypoints: tuple[Location]
+) -> list[Location]:
+    unvisited_waypoints = list(waypoints)
+    for loc in path:
+        if loc in unvisited_waypoints:
+            unvisited_waypoints.remove(loc)
+        else:
+            pass
+
+    return unvisited_waypoints
+
+
 # This function is for Extra Credits, please begin this part after finishing previous two functions
-def astar_multiple(maze):
+def astar_multiple(maze: Maze):
     """
     Runs A star for part 3 of the assignment in the case where there are
     multiple objectives.
@@ -165,4 +245,84 @@ def astar_multiple(maze):
     @return path: a list of tuples containing the coordinates of each state in the computed path
     """
 
-    return []
+    start: Location = maze.start
+    waypoints = maze.waypoints
+
+    open: list[AStarNode] = [
+        AStarNode(
+            heuristics(start, list(waypoints)),
+            0,
+            start,
+            None,
+        )
+    ]
+    heapify(open)
+    closed: list[AStarNode] = []
+
+    while open:
+        n = heappop(open)
+        closed.append(n)
+
+        if len(get_unvisited_waypoints(generate_path(n), waypoints)) == 0:
+            break
+        else:
+            pass
+
+        current_path = generate_path(n)
+
+        for edge in maze.neighbors(*n.loc):
+            g: int = n.g + 1
+            if edge == (1, 6):
+                pass
+            h: int = heuristics(
+                edge, get_unvisited_waypoints(current_path + [edge], waypoints)
+            )
+            f: int = g + h
+
+            close_locs: list[Location] = [n.loc for n in closed]
+            open_locs: list[Location] = [n.loc for n in open]
+
+            if edge in close_locs:
+                closed_ind: int = close_locs.index(edge)
+                m: AStarNode = closed[closed_ind]
+
+                if f <= m.f:
+                    closed.pop(closed_ind)
+                    heappush(open, AStarNode(f, g, edge, n))
+                else:
+                    pass
+
+            elif edge in open_locs:
+                open_ind: int = open_locs.index(edge)
+                m: AStarNode = open[open_ind]
+                if f <= m.f:
+                    open.pop(open_ind)
+                    heapify(open)
+                    heappush(open, AStarNode(f, g, edge, n))
+                else:
+                    pass
+            else:
+                heappush(open, AStarNode(f, g, edge, n))
+
+    # paths: list[tuple[int, Path]] = []
+    # heapify(paths)
+    # close_locs: list[Location] = [n.loc for n in closed]
+    # for point in waypoints:
+    #     if point in close_locs:
+    #         closed_ind: int = close_locs.index(point)
+    #         m: AStarNode = closed[closed_ind]
+    #         path: Path = generate_path(m)
+
+    #         if len(get_unvisited_waypoints(generate_path(m), waypoints)) == 0:
+    #             heappush(paths, (len(path), path))
+    #         else:
+    #             pass
+    #     else:
+    #         pass
+
+    # _, final_path = heappop(paths)
+
+    final_path = generate_path(closed[-1])
+    maze.states_explored = 0
+
+    return final_path
