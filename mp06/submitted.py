@@ -82,8 +82,7 @@ Root = Literal['min', 'max']
 
 
 def find_optimal_value(node: Node, depth: int, is_maximizing_player: bool) -> tuple[float, list[str]]:
-    if depth == 2:
-        pass
+
     best_value: float = node.value
     best_path: list[str] = node.move_path
     if depth == 0 or len(node.children) == 0:
@@ -221,7 +220,7 @@ class PruneNode:
 Root = Literal['min', 'max']
 
 
-def alphabeta(side: bool, board: Board, flags: Flags, depth: int, alpha: float = -math.inf, beta: float = math.inf):
+def alphabeta_tmp(side: bool, board: Board, flags: Flags, depth: int, alpha: float = -math.inf, beta: float = math.inf):
     """
     Return minimax-optimal move sequence, and a tree that exhibits alphabeta pruning.
     Return: (value, moveList, moveTree)
@@ -235,7 +234,7 @@ def alphabeta(side: bool, board: Board, flags: Flags, depth: int, alpha: float =
       depth (int >=0): depth of the search (number of moves)
     """
     is_maximizing_player: bool = not side
-    nodes: list[PruneNode] = [[PruneNode(alpha, beta)]]
+    nodes: list[list[PruneNode]] = [[PruneNode(alpha, beta)]]
     moveTree: dict[str, dict]
     for i in range(depth):
         depth_nodes: list[PruneNode] = []
@@ -344,6 +343,141 @@ def alphabeta(side: bool, board: Board, flags: Flags, depth: int, alpha: float =
     moveList = [decode(move) for move in best_path]
 
     return best_value, moveList, moveTree
+
+
+def find_optimal_value_with_pruning(node: PruneNode, depth: int, alpha: float, beta: float, is_maximizing_player: bool) -> tuple[float, list[str]]:
+
+    best_value: float = node.value
+    best_path: list[str] = node.move_path
+    tree: dict[str, dict] = {}
+    if depth == 0 or len(node.children) == 0:
+        tree.update({})
+    else:
+        child_value: float
+        move_path: list[str]
+        child_tree: dict[str, dict]
+        if is_maximizing_player:
+            best_value = -math.inf
+            for child in node.children:
+                child_value, move_path, child_tree = find_optimal_value_with_pruning(
+                    child, depth - 1, alpha, beta, False)
+                alpha = max(alpha, child_value)
+                if child_value > best_value:
+                    best_path = move_path
+                else:
+                    pass
+                best_value = max(
+                    best_value, child_value) if child_value else best_value
+
+                tree.update({child.move_path[-1]: child_tree})
+
+                if alpha >= beta:
+                    break
+            node.alpha = alpha
+
+        else:
+            best_value = math.inf
+            for child in node.children:
+                child_value, move_path, child_tree = find_optimal_value_with_pruning(
+                    child, depth - 1, alpha, beta, True)
+                beta = min(beta, child_value)
+                if child_value < best_value:
+                    best_path = move_path
+                else:
+                    pass
+                best_value = min(
+                    best_value, child_value) if child_value else best_value
+
+                tree.update({child.move_path[-1]: child_tree})
+
+                if alpha >= beta:
+                    break
+            node.beta = beta
+
+        node.value = best_value
+
+    return best_value, best_path, tree
+
+
+def alphabeta(side: bool, board: Board, flags: Flags, depth: int, alpha: float = -math.inf, beta: float = math.inf):
+    """
+    Return minimax-optimal move sequence, and a tree that exhibits alphabeta pruning.
+    Return: (value, moveList, moveTree)
+      value (float): value of the final board in the minimax-optimal move sequence
+      moveList (list): the minimax-optimal move sequence, as a list of moves
+      moveTree (dict: encode(*move)->dict): a tree of moves that were evaluated in the search process
+    Input:
+      side (boolean): True if player1 (Min) plays next, otherwise False
+      board (2-tuple of lists): current board layout, used by generateMoves and makeMove
+      flags (list of flags): list of flags, used by generateMoves and makeMove
+      depth (int >=0): depth of the search (number of moves)
+    """
+    nodes: list[list[PruneNode]] = create_tree(
+        side, board, flags, depth, alpha, beta)
+    best_value, best_path, tree = find_optimal_value_with_pruning(
+        nodes[0][0], depth, alpha, beta, not side)
+
+    moveList = [decode(move) for move in best_path]
+    return best_value, moveList, tree
+
+
+def create_tree(side: bool, board: Board, flags: Flags, depth: int, alpha: float, beta: float):
+    nodes: list[list[PruneNode]] = [[PruneNode(alpha, beta)]]
+    for i in range(depth):
+        depth_nodes: list[PruneNode] = []
+        current_depth_nodes: list[PruneNode] = nodes[i]
+
+        for node_idx, node in enumerate(current_depth_nodes):
+            newside: bool = side
+            newboard: Board = board
+            newflags: Flags = flags
+
+            if node.move_path:
+                for move in node.move_path:
+                    decoded_move: Move = decode(move)
+                    newside, newboard, newflags = makeMove(
+                        newside, newboard, decoded_move[0], decoded_move[1], newflags, decoded_move[2])
+
+            else:
+                pass
+
+            new_moves: list[Move] = generateMoves(newside, newboard, newflags)
+
+            if new_moves:
+
+                new_encoded_moves: list[str] = [
+                    encode(*move) for move in new_moves]
+
+                children: list[PruneNode]
+
+                if i != depth - 1:
+                    children = [
+                        PruneNode(alpha, beta, None, None, node, node.move_path + [move]) for move in new_encoded_moves]
+                else:
+                    children = []
+
+                    for move in generateMoves(newside, newboard, newflags):
+                        final_board: Board
+                        _, final_board, _ = makeMove(
+                            newside, newboard, move[0], move[1], newflags, move[2])
+                        value: float = evaluate(final_board)
+
+                        children.append(
+                            PruneNode(alpha, beta, value, None, node, node.move_path + [encode(*move)]))
+
+                node.children = children
+                depth_nodes += children
+
+            else:
+                value: float = evaluate(newboard)
+                node.value = value
+
+        if depth_nodes:
+            nodes.append(depth_nodes)
+        else:
+            pass
+
+    return nodes
 
 
 def stochastic(side, board, flags, depth, breadth, chooser):
