@@ -1,5 +1,5 @@
 import math
-from typing import Callable, Literal, NamedTuple
+from typing import Callable, Literal, NamedTuple, Union
 import chess.lib
 from chess.lib.utils import encode, decode
 from chess.lib.heuristics import evaluate
@@ -85,10 +85,13 @@ def find_optimal_value(node: Node, depth: int, is_maximizing_player: bool) -> tu
     if depth == 2:
         pass
     best_value: float = node.value
-    best_path: float = node.move_path
+    best_path: list[str] = node.move_path
     if depth == 0 or len(node.children) == 0:
         pass
     else:
+        child_value: float
+        move_path: list[str]
+
         if is_maximizing_player:
             best_value = -math.inf
             for child in node.children:
@@ -186,22 +189,39 @@ def minimax(side: bool, board: Board, flags: Flags, depth: int) -> tuple[float, 
 
                 node.children = children
                 depth_nodes += children
-                nodes.append(depth_nodes)
 
             else:
                 value: float = evaluate(newboard)
                 node.value = value
 
+        if depth_nodes:
+            nodes.append(depth_nodes)
+        else:
+            pass
+
     best_value, best_path = find_optimal_value(
         nodes[0][0], depth, is_maximizing_player)
 
     moveList = [decode(move) for move in best_path]
-    if moveList == [[[7, 1], [6, 3], None]]:
-        pass
+
     return best_value, moveList, moveTree
+    raise NotImplementedError
 
 
-def alphabeta(side, board, flags, depth, alpha=-math.inf, beta=math.inf):
+class PruneNode:
+    def __init__(self, alpha: float, beta: float, value: float | None = None, children: list['PruneNode'] | None = None, parent: Union['PruneNode', None] = None, move_path: list[str] | None = None):
+        self.value: float | None = value
+        self.children: list['PruneNode'] = children or []
+        self.parent: 'PruneNode' | None = parent
+        self.move_path: list[str] = move_path or []
+        self.alpha = alpha
+        self.beta = beta
+
+
+Root = Literal['min', 'max']
+
+
+def alphabeta(side: bool, board: Board, flags: Flags, depth: int, alpha: float = -math.inf, beta: float = math.inf):
     """
     Return minimax-optimal move sequence, and a tree that exhibits alphabeta pruning.
     Return: (value, moveList, moveTree)
@@ -214,7 +234,116 @@ def alphabeta(side, board, flags, depth, alpha=-math.inf, beta=math.inf):
       flags (list of flags): list of flags, used by generateMoves and makeMove
       depth (int >=0): depth of the search (number of moves)
     """
-    raise NotImplementedError("you need to write this!")
+    is_maximizing_player: bool = not side
+    nodes: list[PruneNode] = [[PruneNode(alpha, beta)]]
+    moveTree: dict[str, dict]
+    for i in range(depth):
+        depth_nodes: list[PruneNode] = []
+        current_depth_nodes: list[PruneNode] = nodes[i]
+
+        for node_idx, node in enumerate(current_depth_nodes):
+            newside: bool = side
+            newboard: Board = board
+            newflags: Flags = flags
+
+            if node.move_path:
+                for move in node.move_path:
+                    decoded_move: Move = decode(move)
+                    newside, newboard, newflags = makeMove(
+                        newside, newboard, decoded_move[0], decoded_move[1], newflags, decoded_move[2])
+
+            else:
+                pass
+
+            new_moves: list[Move] = generateMoves(newside, newboard, newflags)
+
+            if new_moves:
+
+                new_encoded_moves: list[str] = [
+                    encode(*move) for move in new_moves]
+
+                children: list[PruneNode]
+                node_alpha: float = node.alpha if i == 0 else node.parent.alpha
+                node_beta: float = node.beta if i == 0 else node.parent.beta
+
+                move_dict: dict[str, dict]
+                if i != depth - 1:
+                    children = [
+                        PruneNode(node_alpha, node_beta, None, None, node, node.move_path + [move]) for move in new_encoded_moves]
+                    move_dict = {move: {}for move in new_encoded_moves}
+                else:
+                    children = []
+                    is_maximizing_node: bool = bool(
+                        (is_maximizing_player+i) % 2)
+                    move_dict = {}
+                    for move in generateMoves(newside, newboard, newflags):
+                        final_board: Board
+                        _, final_board, _ = makeMove(
+                            newside, newboard, move[0], move[1], newflags, move[2])
+                        value: float = evaluate(final_board)
+
+                        if is_maximizing_node:
+                            node_alpha = max(node_alpha, value)
+                        else:
+                            node_beta = min(node_beta, value)
+                        children.append(
+                            PruneNode(node_alpha, node_beta, value, None, node, node.move_path + [encode(*move)]))
+
+                        move_dict.update({encode(*move): {}})
+
+                        if node_alpha >= node_beta:
+                            break
+                        else:
+                            pass
+
+                    node.alpha = node_alpha
+                    node.beta = node_beta
+
+                    if node_alpha < node_beta:
+                        back_track_node: PruneNode = node
+                        is_maximizing_node_track: bool = is_maximizing_node
+                        while True:
+                            if is_maximizing_node_track:
+                                back_track_node.parent.beta = back_track_node.alpha
+                            else:
+                                back_track_node.parent.alpha = back_track_node.beta
+
+                            is_maximizing_node_track = not is_maximizing_node_track
+                            back_track_node = back_track_node.parent
+                            if back_track_node.parent == None:
+                                break
+                            else:
+                                pass
+                    else:
+                        pass
+
+                if i == 0:
+                    moveTree = {move: {} for move in new_encoded_moves}
+                else:
+                    result = moveTree
+                    for key in node.move_path:
+                        result = result[key]
+
+                    result.update(move_dict)
+
+                node.children = children
+                depth_nodes += children
+
+            else:
+                value: float = evaluate(newboard)
+                node.value = value
+
+        if depth_nodes:
+            nodes.append(depth_nodes)
+        else:
+            pass
+
+    best_value, best_path = find_optimal_value(
+        nodes[0][0], depth, is_maximizing_player)
+
+    moveList = [decode(move) for move in best_path]
+
+    return best_value, moveList, moveTree
 
 
 def stochastic(side, board, flags, depth, breadth, chooser):
