@@ -71,36 +71,53 @@ def random(side, board, flags, chooser):
 # Stuff you need to write:
 # Move-generating functions using minimax, alphabeta, and stochastic search.
 
-class Node(NamedTuple):
-    def __init__(self, value: int | None = None, children: list['Node'] | None = None):
-        self.value: int | None = value
+class Node:
+    def __init__(self, value: float | None = None, children: list['Node'] | None = None, move_path: list[str] | None = None):
+        self.value: float | None = value
         self.children: list['Node'] = children or []
+        self.move_path: list[str] = move_path or []
 
 
 Root = Literal['min', 'max']
 
 
-def find_optimal_value(node: Node, depth: int, is_maximizing_player: bool) -> int:
+def find_optimal_value(node: Node, depth: int, is_maximizing_player: bool) -> tuple[float, list[str]]:
+    if depth == 2:
+        pass
+    best_value: float = node.value
+    best_path: float = node.move_path
     if depth == 0 or len(node.children) == 0:
-        return node.value
-
-    if is_maximizing_player:
-        best_value = -math.inf
-        for child in node.children:
-            child_value = minimax(child, depth - 1, False)
-            best_value = max(
-                best_value, child_value) if child_value else best_value
-        return best_value
+        pass
     else:
-        best_value = math.inf
-        for child in node.children:
-            child_value = minimax(child, depth - 1, True)
-            best_value = min(
-                best_value, child_value) if child_value else best_value
-        return best_value
+        if is_maximizing_player:
+            best_value = -math.inf
+            for child in node.children:
+                child_value, move_path = find_optimal_value(
+                    child, depth - 1, False)
+                if child_value > best_value:
+                    best_path = move_path
+                else:
+                    pass
+                best_value = max(
+                    best_value, child_value) if child_value else best_value
+
+        else:
+            best_value = math.inf
+            for child in node.children:
+                child_value, move_path = find_optimal_value(
+                    child, depth - 1, True)
+
+                if child_value < best_value:
+                    best_path = move_path
+                else:
+                    pass
+                best_value = min(
+                    best_value, child_value) if child_value else best_value
+
+    return best_value, best_path
 
 
-def minimax(side: bool, board: Board, flags: Flags, depth: int):
+def minimax(side: bool, board: Board, flags: Flags, depth: int) -> tuple[float, list[str], dict[str, dict]]:
     """
     Return a minimax-optimal move sequence, tree of all boards evaluated, and value of best path.
     Return: (value, moveList, moveTree)
@@ -113,15 +130,11 @@ def minimax(side: bool, board: Board, flags: Flags, depth: int):
       flags (list of flags): list of flags, used by generateMoves and makeMove
       depth (int >=0): depth of the search (number of moves)
     """
-    root: Root = 'min' if side else 'max'
-    white_pieces: list[Piece]
-    black_pieces: list[Piece]
-    white_pieces, black_pieces = board
-    nodes: list[list[Node]] = [[Node(None, None, None)]]
+    is_maximizing_player: bool = not side
+    nodes: list[Node] = [[Node()]]
     moveTree: dict[str, dict]
     for i in range(depth):
-        depth_nodes: list[Node]
-        depth_nodes = []
+        depth_nodes: list[Node] = []
         current_depth_nodes: list[Node] = nodes[i]
 
         for node in current_depth_nodes:
@@ -129,17 +142,8 @@ def minimax(side: bool, board: Board, flags: Flags, depth: int):
             newboard: Board = board
             newflags: Flags = flags
 
-            if node.move != None:
-                encoded_move_path: list[str] = []
-                tracked_node = node
-
-                while tracked_node is not None:
-                    encoded_move_path.append(tracked_node.move)
-                    tracked_node = tracked_node.parent
-
-                encoded_move_path.reverse()
-
-                for move in encoded_move_path:
+            if node.move_path:
+                for move in node.move_path:
                     decoded_move: Move = decode(move)
                     newside, newboard, newflags = makeMove(
                         newside, newboard, decoded_move[0], decoded_move[1], newflags, decoded_move[2])
@@ -148,41 +152,53 @@ def minimax(side: bool, board: Board, flags: Flags, depth: int):
                 pass
 
             new_moves: list[Move] = generateMoves(newside, newboard, newflags)
-            new_encoded_moves: list[str] = [
-                encode(*move) for move in new_moves]
 
-            if i == 0:
-                moveTree = {move: {} for move in new_encoded_moves}
-            else:
-                move_dict: dict[str, dict] = {move: {}
-                                              for move in new_encoded_moves}
-                result = moveTree
-                for key in encoded_move_path:
-                    result = result[key]
+            if new_moves:
 
-                result.update(move_dict)
+                new_encoded_moves: list[str] = [
+                    encode(*move) for move in new_moves]
 
-            if i != depth - 1:
-                children: list[Node] = [
-                    Node(None, encode(*move), node) for move in generateMoves(newside, newboard, newflags)]
+                if i == 0:
+                    moveTree = {move: {} for move in new_encoded_moves}
+                else:
+                    move_dict: dict[str, dict] = {move: {}
+                                                  for move in new_encoded_moves}
+                    result = moveTree
+                    for key in node.move_path:
+                        result = result[key]
+
+                    result.update(move_dict)
+
+                children: list[Node]
+                if i != depth - 1:
+                    children = [
+                        Node(None, None, node.move_path + [encode(*move)]) for move in generateMoves(newside, newboard, newflags)]
+
+                else:
+                    children = []
+                    for move in generateMoves(newside, newboard, newflags):
+                        final_board: Board
+                        _, final_board, _ = makeMove(
+                            newside, newboard, move[0], move[1], newflags, move[2])
+                        value: float = evaluate(final_board)
+                        children.append(
+                            Node(value, None, node.move_path + [encode(*move)]))
+
+                node.children = children
                 depth_nodes += children
+                nodes.append(depth_nodes)
+
             else:
-                children: list[Node] = []
-                values: list[int] = []
-                for move in generateMoves(newside, newboard, newflags):
-                    final_board: Board
-                    _, final_board, _ = makeMove(
-                        newside, newboard, move[0], move[1], newflags, move[2])
-                    value = evaluate(board)
-                    values.append(value)
-                    children.append(Node(value, encode(move), node))
+                value: float = evaluate(newboard)
+                node.value = value
 
-                optimal_value = min_max_depth(root, depth-1)(values)
-                nodes[i-1].remove(node)
-                nodes[i-1].append(Node(optimal_value,
-                                  node.move, node.parent))
+    best_value, best_path = find_optimal_value(
+        nodes[0][0], depth, is_maximizing_player)
 
-        nodes.append(depth_nodes)
+    moveList = [decode(move) for move in best_path]
+    if moveList == [[[7, 1], [6, 3], None]]:
+        pass
+    return best_value, moveList, moveTree
 
 
 def alphabeta(side, board, flags, depth, alpha=-math.inf, beta=math.inf):
