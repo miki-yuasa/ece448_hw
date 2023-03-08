@@ -1,5 +1,5 @@
 import math
-from typing import Literal, NamedTuple
+from typing import Callable, Literal, NamedTuple
 import chess.lib
 from chess.lib.utils import encode, decode
 from chess.lib.heuristics import evaluate
@@ -32,7 +32,8 @@ def generateMoves(side: bool, board: Board, flags: Flags):
     for piece in board[side]:
         fro = piece[:2]
         for to in chess.lib.availableMoves(side, board, piece, flags):
-            promote = chess.lib.getPromote(None, side, board, fro, to, single=True)
+            promote = chess.lib.getPromote(
+                None, side, board, fro, to, single=True)
             yield [fro, to, promote]
 
 
@@ -70,6 +71,20 @@ def random(side, board, flags, chooser):
 # Stuff you need to write:
 # Move-generating functions using minimax, alphabeta, and stochastic search.
 
+class Node(NamedTuple):
+    value: int | None
+    move: str | None
+    parent: 'Node' | None
+
+
+Root = Literal['min', 'max']
+
+
+def min_max_depth(root: Root, depth: int) -> Callable:
+    tag = root if depth % 2 == 0 else ['min', 'max'].remove(root)[0]
+
+    return min if tag == 'min' else max
+
 
 def minimax(side: bool, board: Board, flags: Flags, depth: int):
     """
@@ -84,12 +99,76 @@ def minimax(side: bool, board: Board, flags: Flags, depth: int):
       flags (list of flags): list of flags, used by generateMoves and makeMove
       depth (int >=0): depth of the search (number of moves)
     """
+    root: Root = 'min' if side else 'max'
     white_pieces: list[Piece]
     black_pieces: list[Piece]
     white_pieces, black_pieces = board
-    for _ in range(depth):
-        moves: list[Move] = generateMoves(side, board, flags)
-        tree: dict[str,dict] = {encode(*move): {} for move in moves}
+    nodes: list[list[Node]] = [[Node(None, None, None)]]
+    moveTree: dict[str, dict]
+    for i in range(depth):
+        depth_nodes: list[Node]
+        depth_nodes = []
+        current_depth_nodes: list[Node] = nodes[i]
+
+        for node in current_depth_nodes:
+            newside: bool = side
+            newboard: Board = board
+            newflags: Flags = flags
+
+            if node.move != None:
+                encoded_move_path: list[str] = []
+                tracked_node = node
+
+                while tracked_node is not None:
+                    encoded_move_path.append(tracked_node.move)
+                    tracked_node = tracked_node.parent
+
+                encoded_move_path.reverse()
+
+                for move in encoded_move_path:
+                    decoded_move: Move = decode(move)
+                    newside, newboard, newflags = makeMove(
+                        newside, newboard, decoded_move[0], decoded_move[1], newflags, decoded_move[2])
+
+            else:
+                pass
+
+            new_moves: list[Move] = generateMoves(newside, newboard, newflags)
+            new_encoded_moves: list[str] = [
+                encode(*move) for move in new_moves]
+
+            if i == 0:
+                moveTree = {move: {} for move in new_encoded_moves}
+            else:
+                move_dict: dict[str, dict] = {move: {}
+                                              for move in new_encoded_moves}
+                result = moveTree
+                for key in encoded_move_path:
+                    result = result[key]
+
+                result.update(move_dict)
+
+            if i != depth - 1:
+                children: list[Node] = [
+                    Node(None, encode(*move), node) for move in generateMoves(newside, newboard, newflags)]
+                depth_nodes += children
+            else:
+                children: list[Node] = []
+                values: list[int] = []
+                for move in generateMoves(newside, newboard, newflags):
+                    final_board: Board
+                    _, final_board, _ = makeMove(
+                        newside, newboard, move[0], move[1], newflags, move[2])
+                    value = evaluate(board)
+                    values.append(value)
+                    children.append(Node(value, encode(move), node))
+
+                optimal_value = min_max_depth(root, depth-1)(values)
+                nodes[i-1].remove(node)
+                nodes[i-1].append(Node(optimal_value,
+                                  node.move, node.parent))
+
+        nodes.append(depth_nodes)
 
 
 def alphabeta(side, board, flags, depth, alpha=-math.inf, beta=math.inf):
