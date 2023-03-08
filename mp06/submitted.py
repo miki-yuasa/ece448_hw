@@ -72,18 +72,32 @@ def random(side, board, flags, chooser):
 # Move-generating functions using minimax, alphabeta, and stochastic search.
 
 class Node(NamedTuple):
-    value: int | None
-    move: str | None
-    parent: 'Node' | None
+    def __init__(self, value: int | None = None, children: list['Node'] | None = None):
+        self.value: int | None = value
+        self.children: list['Node'] = children or []
 
 
 Root = Literal['min', 'max']
 
 
-def min_max_depth(root: Root, depth: int) -> Callable:
-    tag = root if depth % 2 == 0 else ['min', 'max'].remove(root)[0]
+def find_optimal_value(node: Node, depth: int, is_maximizing_player: bool) -> int:
+    if depth == 0 or len(node.children) == 0:
+        return node.value
 
-    return min if tag == 'min' else max
+    if is_maximizing_player:
+        best_value = -math.inf
+        for child in node.children:
+            child_value = minimax(child, depth - 1, False)
+            best_value = max(
+                best_value, child_value) if child_value else best_value
+        return best_value
+    else:
+        best_value = math.inf
+        for child in node.children:
+            child_value = minimax(child, depth - 1, True)
+            best_value = min(
+                best_value, child_value) if child_value else best_value
+        return best_value
 
 
 def minimax(side: bool, board: Board, flags: Flags, depth: int):
