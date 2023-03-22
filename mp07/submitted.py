@@ -289,9 +289,26 @@ def apply(
     for goal in goals_copy:
         unification, subs = unify(rule_copy["consequent"], goal, variables)
         if unification and subs:
-            pass
+            new_antecedents:list[Proposition] = copy.deepcopy( rule_copy["antecedents"])
+            for key, item in subs.items():
+                for i, antecedent in enumerate(new_antecedents):
+                    new_antecedent: Proposition = [
+                        item if token == key else token for token in antecedent
+                    ]
+                    new_antecedents[i] = new_antecedent
+
+            applications.append(
+                {"antecedents": new_antecedents, "consequent": unification}
+            )
+
+            other_goals: Goals = copy.deepcopy(goals)
+            other_goals.remove(goal)
+            new_goals: Goals = other_goals + new_antecedents
+            goalsets.append(new_goals)
+
         else:
             continue
+
     return applications, goalsets
 
 
