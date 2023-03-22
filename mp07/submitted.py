@@ -12,10 +12,20 @@ from typing import TypeAlias, TypedDict
 Proposition: TypeAlias = list[str | bool]
 
 
-class RuleDict(TypedDict):
+class RequiredRuleKeys(TypedDict):
     antecedents: list[Proposition]
     consequent: Proposition
+
+
+class OptionalRuleKeys(TypedDict, total=False):
     text: str
+
+
+class RuleDict(RequiredRuleKeys, OptionalRuleKeys):
+    ...
+
+
+Goals: TypeAlias = list[Proposition]
 
 
 def standardize_variables(
@@ -144,7 +154,10 @@ def unify(
     unification: Proposition | None
     subs: dict[str, str] | None
 
-    if query[-1] != datum[-1]:
+    query_copy = copy.deepcopy(query)
+    datum_copy = copy.deepcopy(datum)
+
+    if query_copy[-1] != datum_copy[-1]:
 
         unification = None
         subs = None
@@ -152,7 +165,7 @@ def unify(
     else:
         unification = []
         subs = {}
-        for q, d in zip(query, datum):
+        for q, d in zip(query_copy, datum_copy):
             if isinstance(q, bool) or isinstance(d, bool):
                 assert q == d
                 unification.append(q)
@@ -161,15 +174,15 @@ def unify(
                     subs[q] = d
                     unification.append(d)
 
-                    for i, qq in enumerate(query):
+                    for i, qq in enumerate(query_copy):
                         if qq == q:
-                            query[i] = d
+                            query_copy[i] = d
                         else:
                             pass
 
-                    for j, dd in enumerate(datum):
+                    for j, dd in enumerate(datum_copy):
                         if dd == q:
-                            datum[j] = d
+                            datum_copy[j] = d
                         else:
                             pass
 
@@ -202,7 +215,9 @@ def unify(
     return unification, subs
 
 
-def apply(rule, goals, variables):
+def apply(
+    rule: RuleDict, goals: Goals, variables: list[str]
+) -> tuple[list[RuleDict], list[Goals]]:
     """
     @param rule: A rule that is being tested to see if it can be applied
       This function should not modify rule; consider deepcopy.
@@ -264,7 +279,19 @@ def apply(rule, goals, variables):
         ['bald eagle','is','hungry',False]
       ]
     """
-    raise RuntimeError("You need to write this part!")
+
+    rule_copy = copy.deepcopy(rule)
+    goals_copy = copy.deepcopy(goals)
+
+    applications: list[RuleDict] = []
+    goalsets: list[Goals] = []
+
+    for goal in goals_copy:
+        unification, subs = unify(rule_copy["consequent"], goal, variables)
+        if unification and subs:
+            pass
+        else:
+            continue
     return applications, goalsets
 
 
