@@ -91,7 +91,9 @@ def standardize_variables(
     return standardized_rules, variables
 
 
-def unify(query, datum, variables):
+def unify(
+    query: Proposition, datum: Proposition, variables: list[str]
+) -> tuple[Proposition | None, dict[str, str] | None]:
     """
     @param query: proposition that you're trying to match.
       The input query should not be modified by this function; consider deepcopy.
@@ -139,7 +141,64 @@ def unify(query, datum, variables):
     unify([...,True],[...,False],[...]) should always return None, None, regardless of the
       rest of the contents of the query or datum.
     """
-    raise RuntimeError("You need to write this part!")
+    unification: Proposition | None
+    subs: dict[str, str] | None
+
+    if query[-1] != datum[-1]:
+
+        unification = None
+        subs = None
+
+    else:
+        unification = []
+        subs = {}
+        for q, d in zip(query, datum):
+            if isinstance(q, bool) or isinstance(d, bool):
+                assert q == d
+                unification.append(q)
+            else:
+                if q in variables and d in variables:
+                    subs[q] = d
+                    unification.append(d)
+
+                    for i, qq in enumerate(query):
+                        if qq == q:
+                            query[i] = d
+                        else:
+                            pass
+
+                    for j, dd in enumerate(datum):
+                        if dd == q:
+                            datum[j] = d
+                        else:
+                            pass
+
+                elif q in variables:
+                    subs[q] = d
+                    unification.append(d)
+                elif d in variables:
+                    subs[d] = q
+                    unification.append(q)
+                elif d == q:
+                    unification.append(d)
+                else:
+                    unification = None
+                    subs = None
+                    break
+
+    if unification and subs:
+
+        substituted_unification: Proposition = []
+
+        for token in unification:
+
+            if token in subs.keys() and isinstance(token, str):
+                substituted_unification.append(subs[token])
+            else:
+                substituted_unification.append(token)
+
+        unification = substituted_unification
+
     return unification, subs
 
 
