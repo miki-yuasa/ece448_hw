@@ -1,42 +1,85 @@
-'''
+"""
 This is the module you'll submit to the autograder.
 
 There are several function definitions, here, that raise RuntimeErrors.  You should replace
 each "raise RuntimeError" line with a line that performs the function specified in the
 function's docstring.
-'''
+"""
 
 import copy, queue
+from typing import TypedDict
 
-def standardize_variables(nonstandard_rules):
-    '''
+
+class RuleDict(TypedDict):
+    antecedents: list[list[str | bool]]
+    consequent: list[str | bool]
+    text: str
+
+
+def standardize_variables(
+    nonstandard_rules: dict[str, RuleDict]
+) -> tuple[dict[str, RuleDict], list[str]]:
+    """
     @param nonstandard_rules (dict) - dict from ruleIDs to rules
         Each rule is a dict:
         rule['antecedents'] contains the rule antecedents (a list of propositions)
         rule['consequent'] contains the rule consequent (a proposition).
-   
+
     @return standardized_rules (dict) - an exact copy of nonstandard_rules,
         except that the antecedents and consequent of every rule have been changed
         to replace the word "something" with some variable name that is
         unique to the rule, and not shared by any other rule.
     @return variables (list) - a list of the variable names that were created.
         This list should contain only the variables that were used in rules.
-    '''
-    raise RuntimeError("You need to write this part!")
+    """
+
+    standardized_rules: dict[str, RuleDict] = {}
+
+    var_counter: int = 0
+    variables: list[str] = []
+    for (rule, items) in nonstandard_rules.items():
+        new_antecedents: list[list[str | bool]]
+        new_consequent: list[str | bool]
+        if items["antecedents"] and "something" in items["antecedents"][0]:
+            var_name: str = "x{:0=4}".format(var_counter)
+            new_antecedents = [
+                [
+                    var_name if item == "something" else item
+                    for item in items["antecedents"][0]
+                ]
+            ]
+            new_consequent = [
+                var_name if item == "something" else item
+                for item in items["consequent"]
+            ]
+
+            variables.append(var_name)
+            var_counter += 1
+        else:
+            new_antecedents = items["antecedents"]
+            new_consequent = items["consequent"]
+
+        standardized_rules[rule] = {
+            "antecedents": new_antecedents,
+            "consequent": new_consequent,
+            "text": items["text"],
+        }
+
     return standardized_rules, variables
 
+
 def unify(query, datum, variables):
-    '''
+    """
     @param query: proposition that you're trying to match.
       The input query should not be modified by this function; consider deepcopy.
     @param datum: proposition against which you're trying to match the query.
       The input datum should not be modified by this function; consider deepcopy.
     @param variables: list of strings that should be considered variables.
       All other strings should be considered constants.
-    
-    Unification succeeds if (1) every variable x in the unified query is replaced by a 
+
+    Unification succeeds if (1) every variable x in the unified query is replaced by a
     variable or constant from datum, which we call subs[x], and (2) for any variable y
-    in datum that matches to a constant in query, which we call subs[y], then every 
+    in datum that matches to a constant in query, which we call subs[y], then every
     instance of y in the unified query should be replaced by subs[y].
 
     @return unification (list): unified query, or None if unification fails.
@@ -59,25 +102,26 @@ def unify(query, datum, variables):
     unify(['x','eats','x',True],['a','eats','bobcat',True],['x','y','a','b'])
       unification = ['bobcat','eats','bobcat',True],
       subs = {'x':'a', 'a':'bobcat'}
-      When the 'x':'a' substitution is detected, the query is changed to 
-      ['a','eats','a',True].  Then, later, when the 'a':'bobcat' substitution is 
-      detected, the query is changed to ['bobcat','eats','bobcat',True], which 
+      When the 'x':'a' substitution is detected, the query is changed to
+      ['a','eats','a',True].  Then, later, when the 'a':'bobcat' substitution is
+      detected, the query is changed to ['bobcat','eats','bobcat',True], which
       is the value returned as the answer.
     unify(['a','eats','bobcat',True],['x','eats','x',True],['x','y','a','b'])
       unification = ['bobcat','eats','bobcat',True],
       subs = {'a':'x', 'x':'bobcat'}
-      When the 'a':'x' substitution is detected, the query is changed to 
-      ['x','eats','bobcat',True].  Then, later, when the 'x':'bobcat' substitution 
-      is detected, the query is changed to ['bobcat','eats','bobcat',True], which is 
+      When the 'a':'x' substitution is detected, the query is changed to
+      ['x','eats','bobcat',True].  Then, later, when the 'x':'bobcat' substitution
+      is detected, the query is changed to ['bobcat','eats','bobcat',True], which is
       the value returned as the answer.
-    unify([...,True],[...,False],[...]) should always return None, None, regardless of the 
+    unify([...,True],[...,False],[...]) should always return None, None, regardless of the
       rest of the contents of the query or datum.
-    '''
+    """
     raise RuntimeError("You need to write this part!")
     return unification, subs
 
+
 def apply(rule, goals, variables):
-    '''
+    """
     @param rule: A rule that is being tested to see if it can be applied
       This function should not modify rule; consider deepcopy.
     @param goals: A list of propositions against which the rule's consequent will be tested
@@ -85,20 +129,20 @@ def apply(rule, goals, variables):
     @param variables: list of strings that should be treated as variables
 
     Rule application succeeds if the rule's consequent can be unified with any one of the goals.
-    
+
     @return applications: a list, possibly empty, of the rule applications that
        are possible against the present set of goals.
-       Each rule application is a copy of the rule, but with both the antecedents 
+       Each rule application is a copy of the rule, but with both the antecedents
        and the consequent modified using the variable substitutions that were
-       necessary to unify it to one of the goals. Note that this might require 
+       necessary to unify it to one of the goals. Note that this might require
        multiple sequential substitutions, e.g., converting ('x','eats','squirrel',False)
        based on subs=={'x':'a', 'a':'bobcat'} yields ('bobcat','eats','squirrel',False).
-       The length of the applications list is 0 <= len(applications) <= len(goals).  
-       If every one of the goals can be unified with the rule consequent, then 
+       The length of the applications list is 0 <= len(applications) <= len(goals).
+       If every one of the goals can be unified with the rule consequent, then
        len(applications)==len(goals); if none of them can, then len(applications)=0.
     @return goalsets: a list of lists of new goals, where len(newgoals)==len(applications).
-       goalsets[i] is a copy of goals (a list) in which the goal that unified with 
-       applications[i]['consequent'] has been removed, and replaced by 
+       goalsets[i] is a copy of goals (a list) in which the goal that unified with
+       applications[i]['consequent'] has been removed, and replaced by
        the members of applications[i]['antecedents'].
 
     Example:
@@ -137,12 +181,13 @@ def apply(rule, goals, variables):
         ['bald eagle','is','nice',True],
         ['bald eagle','is','hungry',False]
       ]
-    '''
+    """
     raise RuntimeError("You need to write this part!")
     return applications, goalsets
 
+
 def backward_chain(query, rules, variables):
-    '''
+    """
     @param query: a proposition, you want to know if it is true
     @param rules: dict mapping from ruleIDs to rules
     @param variables: list of strings that should be treated as variables
@@ -150,6 +195,6 @@ def backward_chain(query, rules, variables):
     @return proof (list): a list of rule applications
       that, when read in sequence, conclude by proving the truth of the query.
       If no proof of the query was found, you should return proof=None.
-    '''
+    """
     raise RuntimeError("You need to write this part!")
     return proof
