@@ -7,12 +7,14 @@ function's docstring.
 """
 
 import copy, queue
-from typing import TypedDict
+from typing import TypeAlias, TypedDict
+
+Proposition: TypeAlias = list[str | bool]
 
 
 class RuleDict(TypedDict):
-    antecedents: list[list[str | bool]]
-    consequent: list[str | bool]
+    antecedents: list[Proposition]
+    consequent: Proposition
     text: str
 
 
@@ -37,33 +39,54 @@ def standardize_variables(
 
     var_counter: int = 0
     variables: list[str] = []
+
     for (rule, items) in nonstandard_rules.items():
-        new_antecedents: list[list[str | bool]]
-        new_consequent: list[str | bool]
-        if items["antecedents"] and "something" in items["antecedents"][0]:
-            var_name: str = "x{:0=4}".format(var_counter)
-            new_antecedents = [
-                [
-                    var_name if item == "something" else item
-                    for item in items["antecedents"][0]
+        new_antecedents: list[Proposition] = []
+        new_consequent: Proposition = []
+
+        new_var: str = "x{:0=4}".format(var_counter)
+        is_new_var_used: bool = False
+
+        if items["antecedents"]:
+
+            for antecedent in items["antecedents"]:
+                new_antecedent: Proposition = [
+                    new_var if item == "something" else item for item in antecedent
                 ]
-            ]
-            new_consequent = [
-                var_name if item == "something" else item
-                for item in items["consequent"]
+
+                if new_var in new_antecedent:
+                    is_new_var_used = True
+                else:
+                    pass
+
+                new_antecedents.append(new_antecedent)
+
+        else:
+            pass
+
+        if items["consequent"]:
+            new_consequent: Proposition = [
+                new_var if item == "something" else item for item in items["consequent"]
             ]
 
-            variables.append(var_name)
-            var_counter += 1
+            if new_var in new_consequent:
+                is_new_var_used = True
+            else:
+                pass
         else:
-            new_antecedents = items["antecedents"]
-            new_consequent = items["consequent"]
+            pass
 
         standardized_rules[rule] = {
             "antecedents": new_antecedents,
             "consequent": new_consequent,
             "text": items["text"],
         }
+
+        if is_new_var_used:
+            variables.append(new_var)
+            var_counter += 1
+        else:
+            pass
 
     return standardized_rules, variables
 
