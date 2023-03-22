@@ -6,8 +6,9 @@ each "raise RuntimeError" line with a line that performs the function specified 
 function's docstring.
 """
 
-import copy, queue
-from typing import TypeAlias, TypedDict
+from collections import deque
+import copy
+from typing import NamedTuple, TypeAlias, TypedDict, Union
 
 Proposition: TypeAlias = list[str | bool]
 
@@ -289,7 +290,7 @@ def apply(
     for goal in goals_copy:
         unification, subs = unify(rule_copy["consequent"], goal, variables)
         if unification and subs:
-            new_antecedents:list[Proposition] = copy.deepcopy( rule_copy["antecedents"])
+            new_antecedents: list[Proposition] = copy.deepcopy(rule_copy["antecedents"])
             for key, item in subs.items():
                 for i, antecedent in enumerate(new_antecedents):
                     new_antecedent: Proposition = [
@@ -309,10 +310,23 @@ def apply(
         else:
             continue
 
+    if len(goalsets) == 0:
+        goalsets = [[]]
+    else:
+        pass
+
     return applications, goalsets
 
 
-def backward_chain(query, rules, variables):
+class Node(NamedTuple):
+    goalset: Goals
+    applications: list[RuleDict] = []
+    parent: Union["Node", None] = None
+
+
+def backward_chain(
+    query: Proposition, rules: dict[str, RuleDict], variables: list[str]
+) -> list[RuleDict] | None:
     """
     @param query: a proposition, you want to know if it is true
     @param rules: dict mapping from ruleIDs to rules
@@ -322,5 +336,57 @@ def backward_chain(query, rules, variables):
       that, when read in sequence, conclude by proving the truth of the query.
       If no proof of the query was found, you should return proof=None.
     """
-    raise RuntimeError("You need to write this part!")
+    start_node = Node([query])
+    visited: list[Node] = []
+    queue = deque([start_node])
+
+    proof: list[RuleDict] | None = []
+    is_proven: bool = False
+
+    while queue:
+        current_node: Node = queue.popleft()
+        visited.append(current_node)
+
+        for key, rule in rules.items():
+
+            applications, goal_sets = apply(rule, current_node.goalset, variables)
+
+            if (
+                not applications
+                and not goal_sets[0]
+                and rule["consequent"] == current_node.goalset[0]
+                and len(current_node.goalset) == 1
+            ):
+                node = current_node
+                proof.append(rule)
+                while True:
+                    proof += node.applications
+                    if node.parent:
+                        node = node.parent
+                    else:
+                        break
+
+                is_proven = True
+                break
+            else:
+                pass
+
+            child_node = Node(goal_sets[0], applications, current_node)
+
+            if child_node not in visited and child_node.applications:
+
+                queue.append(child_node)
+                visited.append(child_node)
+            else:
+                pass
+
+        if is_proven:
+            break
+        else:
+            pass
+
+    if not proof:
+        proof = None
+    else:
+        pass
     return proof
