@@ -10,16 +10,14 @@ use other non-standard modules (including nltk). Some modules that might be help
 already imported for you.
 """
 
-import math
 from collections import Counter, defaultdict
 from math import log
+from numpy import argmax
 
 # define your epsilon for laplace smoothing here
 
 
-def baseline(
-    train: list[list[tuple[str, str]]], test: list[list[str]]
-) -> list[list[tuple[str, str]]]:
+def baseline(train, test):
     """
     Implementation for the baseline tagger.
     input:  training data (list of sentences, with tags on the words)
@@ -29,25 +27,20 @@ def baseline(
     """
 
     # Start training
-
-    word_tag_count: dict[str, Counter[str]] = {}
+    word_tag_count = defaultdict(Counter)
 
     for sentence in train:
         for word, tag in sentence:
-            if word not in word_tag_count:
-                word_tag_count[word] = Counter()
             word_tag_count[word][tag] += 1
 
-    tag_count: Counter[str] = Counter()
+    tag_count = Counter()
 
     for values in word_tag_count.values():
-        for key, value in values.items():
-            tag_count[key] += value
+        tag_count.update(values)
 
-    most_common_tag: str = tag_count.most_common(1)[0][0]
+    most_common_tag = tag_count.most_common(1)[0][0]
 
     # Start testing
-
     output: list[list[tuple[str, str]]] = []
 
     for sentence in test:
@@ -64,7 +57,7 @@ def baseline(
     return output
 
 
-def viterbi(
+def viterbi_tmp(
     train: list[list[tuple[str, str]]], test: list[list[str]]
 ) -> list[list[tuple[str, str]]]:
     """
@@ -98,42 +91,37 @@ def viterbi(
         for i in range(len(sentence) - 1):
             tag_pair_count[sentence[i][1]][sentence[i + 1][1]] += 1
 
-    # Compute smoothed probabilities
-    # Take the log of each probability
-
-    all_tags: list[str] = list(tag_count.keys())
     init_tag_prob: dict[str, float] = {}
     tag_pair_prob: dict[str, dict[str, float]] = defaultdict(dict)
     tag_word_prob: dict[str, dict[str, float]] = defaultdict(dict)
 
-    for tag in all_tags:
-        for next_tag in all_tags:
-            tag_pair_prob[tag][next_tag] = math.log(
+    for tag in tag_count.keys():
+        for next_tag in tag_count.keys():
+            tag_pair_prob[tag][next_tag] = log(
                 (tag_pair_count[tag][next_tag] + alpha)
-                / (sum(tag_pair_count[tag].values()) + alpha * len(all_tags))
+                / (sum(tag_pair_count[tag].values()) + alpha * len(tag_count.keys()))
             )
 
         tag_word_count[tag]["OOV"] = 0
         for word in tag_word_count[tag]:
-            tag_word_prob[tag][word] = math.log(
+            tag_word_prob[tag][word] = log(
                 (tag_word_count[tag][word] + alpha)
-                / (sum(tag_word_count[tag].values()) + alpha * len(all_tags))
+                / (sum(tag_word_count[tag].values()) + alpha * len(tag_count.keys()))
             )
 
-        init_tag_prob[tag] = math.log(
+        init_tag_prob[tag] = log(
             (init_tag_count[tag] + alpha)
-            / (sum(init_tag_count.values()) + alpha * len(all_tags))
+            / (sum(init_tag_count.values()) + alpha * len(tag_count.keys()))
         )
 
     output: list[list[tuple[str, str]]] = []
-    # For each time step, compute the probabilities of all possible paths through the trellis ending in that time step.
+
     for sentence in test:
-        # Construct the trellis.   Notice that for each tag/time pair, you must store not only the probability of the best path but also a pointer to the previous tag/time pair in that path.
-        # The trellis is a list of dictionaries, one for each time step.  Each dictionary maps a tag to a tuple (probability, previous_tag).  The previous_tag is None for the first time step.
+
         trellis: list[dict[str, tuple[float, str | None]]] = []
-        # Initialize the trellis with the probabilities of the first word.
+
         init_dict: dict[str, tuple[float, str | None]] = {}
-        for tag in all_tags:
+        for tag in tag_count.keys():
             if sentence[0] in tag_word_prob[tag]:
                 init_dict[tag] = (
                     init_tag_prob[tag] + tag_word_prob[tag][sentence[0]],
@@ -147,10 +135,10 @@ def viterbi(
         for i in range(1, len(sentence)):
             trellis.append({})
             word: str = sentence[i]
-            for tag in all_tags:
+            for tag in tag_count.keys():
                 v_t: float = float("-inf")
                 psi_t: str | None = None
-                for prev_tag in all_tags:
+                for prev_tag in tag_count.keys():
                     v_prev: float = trellis[i - 1][prev_tag][0]
                     b: float = (
                         tag_word_prob[tag][sentence[i]]
@@ -167,11 +155,10 @@ def viterbi(
 
                 trellis[i][tag] = (v_t, psi_t)
 
-        # Find the tag that gives the highest probability of the best path through the trellis.
         output_sentence: list[tuple[str, str]] = []
         max_prob: float = float("-inf")
         max_tag: str | None = None
-        for tag in all_tags:
+        for tag in tag_count.keys():
             if trellis[-1][tag][0] > max_prob:
                 max_prob = trellis[-1][tag][0]
                 max_tag = tag
@@ -183,9 +170,118 @@ def viterbi(
             output_sentence.append((sentence[i], node[1]))
             node = trellis[i][node[1]]
         output.append(output_sentence[::-1])
-    # For each time step, find the tag that gives the highest probability of the best path through the trellis.
 
-    # Return the best path through the trellis.
+    return output
+
+
+def viterbi(train, test):
+    alpha = 1e-4
+
+    # Count occurrences of tags, tag pairs, tag/word pairs.
+    init_tag_count = Counter()
+    tag_count = Counter()
+    tag_pair_count = {}
+    tag_word_count = {}
+
+    for sentence in train:
+        for i in range(len(sentence)):
+            word, tag = sentence[i]
+            if i == 0:
+                init_tag_count[tag] += 1
+            tag_count[tag] += 1
+            if tag not in tag_word_count:
+                tag_word_count[tag] = {"OOV": 0}
+            if word in tag_word_count[tag]:
+                tag_word_count[tag][word] += 1
+            else:
+                tag_word_count[tag][word] = 1
+
+            if i < len(sentence) - 1:
+                prev_tag = sentence[i][1]
+                next_tag = sentence[i + 1][1]
+                if prev_tag not in tag_pair_count:
+                    tag_pair_count[prev_tag] = Counter()
+                tag_pair_count[prev_tag][next_tag] += 1
+
+    init_tag_prob = {}
+    tag_pair_prob = {}
+    tag_word_prob = {}
+
+    for tag in tag_count:
+        tag_pair_prob[tag] = {}
+        for next_tag in tag_count:
+            tag_pair_prob[tag][next_tag] = log(
+                (tag_pair_count.get(tag, Counter())[next_tag] + alpha)
+                / (
+                    sum(tag_pair_count.get(tag, Counter()).values())
+                    + alpha * len(tag_count)
+                )
+            )
+
+        for word in tag_word_count[tag]:
+            tag_word_prob.setdefault(tag, {})[word] = log(
+                (tag_word_count[tag][word] + alpha)
+                / (sum(tag_word_count[tag].values()) + alpha * len(tag_count))
+            )
+
+        init_tag_prob[tag] = log(
+            (init_tag_count[tag] + alpha)
+            / (sum(init_tag_count.values()) + alpha * len(tag_count))
+        )
+
+    output = []
+
+    for sentence in test:
+
+        init_dict = {}
+        for tag in tag_count:
+            if sentence[0] in tag_word_prob.get(tag, {}):
+                init_dict[tag] = init_tag_prob[tag] + tag_word_prob[tag][sentence[0]]
+
+            else:
+                init_dict[tag] = init_tag_prob[tag] + tag_word_prob[tag]["OOV"]
+
+        trellis = init_dict
+
+        traces = []
+
+        for i in range(1, len(sentence)):
+            new_trellis = {}
+            word = sentence[i]
+            trace = {}
+            for tag in tag_count:
+                v_t: float = float("-inf")
+                psi_t: str | None = None
+                for prev_tag in tag_count.keys():
+                    v_tmp: float = (
+                        trellis[prev_tag]
+                        + tag_pair_prob[prev_tag][tag]
+                        + (
+                            tag_word_prob[tag][sentence[i]]
+                            if sentence[i] in tag_word_prob[tag]
+                            else tag_word_prob[tag]["OOV"]
+                        )
+                    )
+                    if v_tmp > v_t:
+                        v_t = v_tmp
+                        psi_t = prev_tag
+                    else:
+                        pass
+
+                trace[tag] = psi_t
+
+                new_trellis[tag] = v_t
+            traces.append(trace)
+            trellis = new_trellis
+
+        output_sentence: list[tuple[str, str]] = [("END", "END")]
+        tag = "END"
+        for i in range(len(sentence) - 2, -1, -1):
+            output_sentence.append((sentence[i], traces[i][tag]))
+            tag = traces[i][tag]
+
+        output.append(output_sentence[::-1])
+
     return output
 
 
