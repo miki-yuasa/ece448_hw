@@ -11,9 +11,8 @@ already imported for you.
 """
 
 import math
-from collections import defaultdict, Counter
+from collections import Counter, defaultdict
 from math import log
-import numpy as np
 
 # define your epsilon for laplace smoothing here
 
@@ -31,7 +30,7 @@ def baseline(
 
     # Start training
 
-    word_tag_count: dict[str, Counter[str]] = defaultdict(Counter)
+    word_tag_count: dict[str, Counter[str]] = {}
 
     for sentence in train:
         for word, tag in sentence:
@@ -77,15 +76,20 @@ def viterbi(
     """
 
     # Define the smoothing parameter
-    alpha: float = 1
+    alpha: float = 1e-4
 
     # Count occurrences of tags, tag pairs, tag/word pairs.
+    init_tag_count: Counter[str] = Counter()
     tag_count: Counter[str] = Counter()
     tag_pair_count: dict[str, Counter[str]] = defaultdict(Counter)
     tag_word_count: dict[str, Counter[str]] = defaultdict(Counter)
 
     for sentence in train:
-        for word, tag in sentence:
+        for i, (word, tag) in enumerate(sentence):
+            if i == 0:
+                init_tag_count[tag] += 1
+            else:
+                pass
             tag_count[tag] += 1
             if tag not in tag_word_count:
                 tag_word_count[tag] = Counter()
@@ -98,6 +102,7 @@ def viterbi(
     # Take the log of each probability
 
     all_tags: list[str] = list(tag_count.keys())
+    init_tag_prob: dict[str, float] = {}
     tag_pair_prob: dict[str, dict[str, float]] = defaultdict(dict)
     tag_word_prob: dict[str, dict[str, float]] = defaultdict(dict)
 
@@ -107,32 +112,81 @@ def viterbi(
                 (tag_pair_count[tag][next_tag] + alpha)
                 / (sum(tag_pair_count[tag].values()) + alpha * len(all_tags))
             )
+
+        tag_word_count[tag]["OOV"] = 0
         for word in tag_word_count[tag]:
             tag_word_prob[tag][word] = math.log(
                 (tag_word_count[tag][word] + alpha)
                 / (sum(tag_word_count[tag].values()) + alpha * len(all_tags))
             )
-    pass
-    # Construct the trellis.   Notice that for each tag/time pair, you must store not only the probability of the best path but also a pointer to the previous tag/time pair in that path.
-    # The trellis is a list of dictionaries, one for each time step.  Each dictionary maps a tag to a tuple (probability, previous_tag).  The previous_tag is None for the first time step.
-    trellis: list[dict[str, tuple[float, str | None]]] = []
-    # Initialize the trellis with the probabilities of the first word.
-    init_dict: dict[str, tuple[float, str | None]] = {
-        tag: (0, None) for tag in all_tags
-    }
-    init_dict["START"] = (log(0), None)
-    trellis.append(init_dict)
+
+        init_tag_prob[tag] = math.log(
+            (init_tag_count[tag] + alpha)
+            / (sum(init_tag_count.values()) + alpha * len(all_tags))
+        )
+
+    output: list[list[tuple[str, str]]] = []
     # For each time step, compute the probabilities of all possible paths through the trellis ending in that time step.
-    for i in range(len(test)):
-        trellis.append({tag: (0, None) for tag in all_tags})
+    for sentence in test:
+        # Construct the trellis.   Notice that for each tag/time pair, you must store not only the probability of the best path but also a pointer to the previous tag/time pair in that path.
+        # The trellis is a list of dictionaries, one for each time step.  Each dictionary maps a tag to a tuple (probability, previous_tag).  The previous_tag is None for the first time step.
+        trellis: list[dict[str, tuple[float, str | None]]] = []
+        # Initialize the trellis with the probabilities of the first word.
+        init_dict: dict[str, tuple[float, str | None]] = {}
         for tag in all_tags:
-            for prev_tag in all_tags:
-                # Compute the probability of the path ending in this tag/time pair.
-                # Store the probability and the previous tag/time pair in the trellis.
+            if sentence[0] in tag_word_prob[tag]:
+                init_dict[tag] = (
+                    init_tag_prob[tag] + tag_word_prob[tag][sentence[0]],
+                    None,
+                )
+            else:
+                init_dict[tag] = (init_tag_prob[tag] + tag_word_prob[tag]["OOV"], None)
+
+        trellis.append(init_dict)
+
+        for i in range(1, len(sentence)):
+            trellis.append({})
+            word: str = sentence[i]
+            for tag in all_tags:
+                v_t: float = float("-inf")
+                psi_t: str | None = None
+                for prev_tag in all_tags:
+                    v_prev: float = trellis[i - 1][prev_tag][0]
+                    b: float = (
+                        tag_word_prob[tag][sentence[i]]
+                        if sentence[i] in tag_word_prob[tag]
+                        else tag_word_prob[tag]["OOV"]
+                    )
+                    a: float = tag_pair_prob[prev_tag][tag]
+                    v_tmp: float = v_prev + a + b
+                    if v_tmp > v_t:
+                        v_t = v_tmp
+                        psi_t = prev_tag
+                    else:
+                        pass
+
+                trellis[i][tag] = (v_t, psi_t)
+
+        # Find the tag that gives the highest probability of the best path through the trellis.
+        output_sentence: list[tuple[str, str]] = []
+        max_prob: float = float("-inf")
+        max_tag: str | None = None
+        for tag in all_tags:
+            if trellis[-1][tag][0] > max_prob:
+                max_prob = trellis[-1][tag][0]
+                max_tag = tag
+            else:
                 pass
+
+        node: tuple[float, str | None] = (max_prob, max_tag)
+        for i in range(len(sentence) - 1, -1, -1):
+            output_sentence.append((sentence[i], node[1]))
+            node = trellis[i][node[1]]
+        output.append(output_sentence[::-1])
     # For each time step, find the tag that gives the highest probability of the best path through the trellis.
 
     # Return the best path through the trellis.
+    return output
 
 
 def viterbi_ec(train, test):
