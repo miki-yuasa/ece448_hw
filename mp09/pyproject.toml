@@ -6,11 +6,13 @@ authors = ["Mikihisa Yuasa 湯淺幹久 <mik0915yua@outlook.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.10,<3.12"
 torch = "^2.0.0"
 numpy = "^1.24.2"
 torchvision = "^0.15.1"
 gradescope-utils = ">=0.2.7"
+jupyterlab = "^3.6.3"
+scipy = "^1.10.1"
 
 
 [build-system]
