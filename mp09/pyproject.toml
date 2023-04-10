@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "mp09"
+version = "0.1.0"
+description = ""
+authors = ["Mikihisa Yuasa 湯淺幹久 <mik0915yua@outlook.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+torch = "^2.0.0"
+numpy = "^1.24.2"
+torchvision = "^0.15.1"
+gradescope-utils = ">=0.2.7"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
