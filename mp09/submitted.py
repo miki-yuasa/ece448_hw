@@ -11,7 +11,7 @@ If you are not sure how to use PyTorch, you may want to take a look at the tutor
 """
 
 import os
-from typing import Callable
+from typing import Callable, Literal
 import numpy as np
 from numpy import ndarray
 
@@ -21,6 +21,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
+from torch.optim import Adam, SGD
 
 from models import resnet18
 
@@ -108,7 +109,7 @@ def get_preprocess_transform(mode):
         transform:      a torchvision transforms object e.g. transforms.Compose([...]) etc.
     """
 
-    raise NotImplementedError("You need to write this part!")
+    return transforms.ToTensor()
 
 
 def build_dataset(data_files, transform=None):
@@ -154,7 +155,7 @@ def build_dataloader(dataset: CIFAR10, loader_params: dict):
 
 
 class FinetuneNet(torch.nn.Module):
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initialize your neural network here. Remember that you will be performing finetuning
         in this network so follow these steps:
@@ -166,10 +167,19 @@ class FinetuneNet(torch.nn.Module):
         super().__init__()
         ################# Your Code Starts Here #################
 
-        raise NotImplementedError("You need to write this part!")
+        self.model = resnet18()
+        self.model.load_state_dict(torch.load("./resnet18.pt"))
+        for param in self.model.parameters():
+            param.requires_grad = False
+
+        self.model.fc.requires_grad_(True)
+
+        # self.model.fc = nn.Identity()
+        # self.fc = nn.Linear(512, 10)
+
         ################## Your Code Ends here ##################
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         """
         Perform a forward pass through your neural net.
 
@@ -181,7 +191,10 @@ class FinetuneNet(torch.nn.Module):
         """
         ################# Your Code Starts Here #################
 
-        raise NotImplementedError("You need to write this part!")
+        self.model.fc.requires_grad_(True)
+        y = self.model(x)
+
+        return y
         ################## Your Code Ends here ##################
 
 
@@ -207,7 +220,7 @@ def build_model(trained=False):
 """
 
 
-def build_optimizer(optim_type, model_params, hparams):
+def build_optimizer(optim_type: Literal["Adam", "SGD"], model_params, hparams: dict):
     """
     Parameters:
         optim_type:      the optimizer type e.g. "Adam" or "SGD"
@@ -217,7 +230,14 @@ def build_optimizer(optim_type, model_params, hparams):
     Outputs:
         optimizer:       a PyTorch optimizer object to be used in training
     """
-    raise NotImplementedError("You need to write this part!")
+    optimizer: Adam | SGD
+    match optim_type:
+        case "Adam":
+            optimizer = Adam(model_params, **hparams)
+        case "SGD":
+            optimizer = SGD(model_params, **hparams)
+
+    return optimizer
 
 
 """
@@ -225,7 +245,12 @@ def build_optimizer(optim_type, model_params, hparams):
 """
 
 
-def train(train_dataloader, model, loss_fn, optimizer):
+def train(
+    train_dataloader: DataLoader,
+    model: FinetuneNet,
+    loss_fn: nn.CrossEntropyLoss,
+    optimizer: Adam | SGD,
+):
     """
     Train your neural network.
 
@@ -245,7 +270,13 @@ def train(train_dataloader, model, loss_fn, optimizer):
 
     ################# Your Code Starts Here #################
 
-    raise NotImplementedError("You need to write this part!")
+    model.train()
+    for X, y in train_dataloader:
+        y_pred: Tensor = model(X)
+        loss: Tensor = loss_fn(y_pred, y)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
     ################## Your Code Ends here ##################
 
 
@@ -254,7 +285,7 @@ def train(train_dataloader, model, loss_fn, optimizer):
 """
 
 
-def test(test_dataloader, model):
+def test(test_dataloader: DataLoader, model: FinetuneNet):
     """
     This part is optional.
 
@@ -278,7 +309,14 @@ def test(test_dataloader, model):
 
     # test_loss = something
     # print("Test loss:", test_loss)
-    raise NotImplementedError("You need to write this part!")
+    num_correct = 0
+    num_total = 0
+    for X, y in test_dataloader:
+        output = model(X)
+        num_correct = (torch.argmax(output, dim=1) == y).sum().item()
+        num_total = y.size(0)
+
+    print("Test accuracy:", num_correct / num_total)
 
 
 """
@@ -297,4 +335,33 @@ def run_model():
     Outputs:
         model:              trained model
     """
-    raise NotImplementedError("You need to write this part!")
+    example_dataset = build_dataset(
+        [
+            "cifar10_batches/data_batch_1",
+            "cifar10_batches/data_batch_2",
+            "cifar10_batches/data_batch_3",
+            "cifar10_batches/data_batch_4",
+            "cifar10_batches/data_batch_5",
+        ],
+        transform=transforms.ToTensor(),
+    )
+    loader_params = {"batch_size": 4, "shuffle": True}
+    example_dataloader = build_dataloader(example_dataset, loader_params=loader_params)
+    model = FinetuneNet()
+    train(
+        example_dataloader,
+        model,
+        nn.CrossEntropyLoss(),
+        Adam(model.parameters(), lr=0.001),
+    )
+
+    test_dataset = build_dataset(
+        ["cifar10_batches/test_batch"], transform=transforms.ToTensor()
+    )
+    test_dataloader = build_dataloader(
+        test_dataset, loader_params={"batch_size": 1, "shuffle": True}
+    )
+
+    test(test_dataloader, model)
+
+    return model
