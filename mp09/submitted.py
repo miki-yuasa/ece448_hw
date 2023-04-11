@@ -59,25 +59,17 @@ class CIFAR10(Dataset):
             read_data: list[ndarray] = data[b"data"]
             read_labels: list[int] = data[b"labels"]
 
-            selected_transform = (
-                transform if b"train" in data[b"batch_label"] else target_transform
-            )
-
-            transformed_data = [
-                transform(data.reshape([3, -1]))
-                if transform is not None
-                else data.reshape([3, -1])
-                for data in read_data
-            ]
-
-            self.dataset += transformed_data
+            self.dataset += read_data
             self.labels += read_labels
+
+        self.transform = transform
+        self.target_transform = target_transform
 
     def __len__(self):
         """
         Return the length of your dataset here.
         """
-        return len(self.dataset)
+        return len(self.labels)
 
     def __getitem__(self, idx: int) -> tuple:
         """
@@ -89,7 +81,23 @@ class CIFAR10(Dataset):
         Outputs:
             y:      a tuple (image, label), although this is arbitrary so you can use whatever you would like.
         """
-        return (self.dataset[idx], self.labels[idx])
+        label = self.labels[idx]
+        image = self.dataset[idx]
+
+        if self.transform:
+            image_tmp = np.stack(
+                [image.reshape([3, 32, 32])[i] for i in range(3)], axis=2
+            )
+            image = self.transform(image_tmp)
+
+        else:
+            pass
+        if self.target_transform:
+            label = self.target_transform(label)
+        else:
+            pass
+
+        return (image, label)
 
 
 def get_preprocess_transform(mode):
@@ -122,7 +130,7 @@ def build_dataset(data_files, transform=None):
 """
 
 
-def build_dataloader(dataset, loader_params):
+def build_dataloader(dataset: CIFAR10, loader_params: dict):
     """
     Parameters:
         dataset:         a PyTorch dataset to load data
@@ -134,7 +142,10 @@ def build_dataloader(dataset, loader_params):
     Outputs:
         dataloader:      a PyTorch dataloader object to be used in training/testing
     """
-    raise NotImplementedError("You need to write this part!")
+
+    dataloader = DataLoader(dataset, **loader_params)
+
+    return dataloader
 
 
 """
