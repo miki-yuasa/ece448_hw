@@ -11,9 +11,12 @@ If you are not sure how to use PyTorch, you may want to take a look at the tutor
 """
 
 import os
+from typing import Callable
 import numpy as np
+from numpy import ndarray
 
 import torch
+from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
@@ -22,7 +25,7 @@ from torchvision import transforms
 from models import resnet18
 
 
-def unpickle(file):
+def unpickle(file: str) -> dict:
     import pickle
 
     with open(file, "rb") as fo:
@@ -34,22 +37,49 @@ def unpickle(file):
 1.  Define and build a PyTorch Dataset
 """
 
+Data = ndarray | Tensor
+
 
 class CIFAR10(Dataset):
-    def __init__(self, data_files, transform=None, target_transform=None):
+    def __init__(
+        self,
+        data_files: list[str],
+        transform: Callable | None = None,
+        target_transform: Callable | None = None,
+    ):
         """
         Initialize your dataset here. Note that transform and target_transform
         correspond to your data transformations for train and test respectively.
         """
-        raise NotImplementedError("You need to write this part!")
+
+        self.dataset: list[Data] = []
+        self.labels: list[int] = []
+        for file in data_files:
+            data = unpickle(file)
+            read_data: list[ndarray] = data[b"data"]
+            read_labels: list[int] = data[b"labels"]
+
+            selected_transform = (
+                transform if b"train" in data[b"batch_label"] else target_transform
+            )
+
+            transformed_data = [
+                transform(data.reshape([3, -1]))
+                if transform is not None
+                else data.reshape([3, -1])
+                for data in read_data
+            ]
+
+            self.dataset += transformed_data
+            self.labels += read_labels
 
     def __len__(self):
         """
         Return the length of your dataset here.
         """
-        raise NotImplementedError("You need to write this part!")
+        return len(self.dataset)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> tuple:
         """
         Obtain a sample from your dataset.
 
@@ -59,7 +89,7 @@ class CIFAR10(Dataset):
         Outputs:
             y:      a tuple (image, label), although this is arbitrary so you can use whatever you would like.
         """
-        raise NotImplementedError("You need to write this part!")
+        return (self.dataset[idx], self.labels[idx])
 
 
 def get_preprocess_transform(mode):
@@ -81,6 +111,10 @@ def build_dataset(data_files, transform=None):
     Outputs:
         dataset:      a PyTorch dataset object to be used in training/testing
     """
+
+    dataset = CIFAR10(data_files, transform=transform)
+
+    return dataset
 
 
 """
