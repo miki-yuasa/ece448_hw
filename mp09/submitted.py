@@ -24,14 +24,17 @@ from models import resnet18
 
 def unpickle(file):
     import pickle
-    with open(file, 'rb') as fo:
-        dict = pickle.load(fo, encoding='bytes')
+
+    with open(file, "rb") as fo:
+        dict = pickle.load(fo, encoding="bytes")
     return dict
 
 
 """
 1.  Define and build a PyTorch Dataset
 """
+
+
 class CIFAR10(Dataset):
     def __init__(self, data_files, transform=None, target_transform=None):
         """
@@ -48,7 +51,7 @@ class CIFAR10(Dataset):
 
     def __getitem__(self, idx):
         """
-        Obtain a sample from your dataset. 
+        Obtain a sample from your dataset.
 
         Parameters:
             x:      an integer, used to index into your data.
@@ -57,7 +60,7 @@ class CIFAR10(Dataset):
             y:      a tuple (image, label), although this is arbitrary so you can use whatever you would like.
         """
         raise NotImplementedError("You need to write this part!")
-    
+
 
 def get_preprocess_transform(mode):
     """
@@ -78,20 +81,21 @@ def build_dataset(data_files, transform=None):
     Outputs:
         dataset:      a PyTorch dataset object to be used in training/testing
     """
-    raise NotImplementedError("You need to write this part!")
 
 
 """
 2.  Build a PyTorch DataLoader
 """
+
+
 def build_dataloader(dataset, loader_params):
     """
     Parameters:
         dataset:         a PyTorch dataset to load data
-        loader_params:   a dict containing all the parameters for the loader. 
-        
-    Please ensure that loader_params contains the keys "batch_size" and "shuffle" corresponding to those 
-    respective parameters in the PyTorch DataLoader class. 
+        loader_params:   a dict containing all the parameters for the loader.
+
+    Please ensure that loader_params contains the keys "batch_size" and "shuffle" corresponding to those
+    respective parameters in the PyTorch DataLoader class.
 
     Outputs:
         dataloader:      a PyTorch dataloader object to be used in training/testing
@@ -102,15 +106,17 @@ def build_dataloader(dataset, loader_params):
 """
 3. (a) Build a neural network class.
 """
+
+
 class FinetuneNet(torch.nn.Module):
     def __init__(self):
         """
         Initialize your neural network here. Remember that you will be performing finetuning
         in this network so follow these steps:
-        
+
         1. Initialize convolutional backbone with pretrained model parameters.
         2. Freeze convolutional backbone.
-        3. Initialize linear layer(s). 
+        3. Initialize linear layer(s).
         """
         super().__init__()
         ################# Your Code Starts Here #################
@@ -137,6 +143,8 @@ class FinetuneNet(torch.nn.Module):
 """
 3. (b)  Build a model
 """
+
+
 def build_model(trained=False):
     """
     Parameters:
@@ -152,12 +160,14 @@ def build_model(trained=False):
 """
 4.  Build a PyTorch optimizer
 """
+
+
 def build_optimizer(optim_type, model_params, hparams):
     """
     Parameters:
         optim_type:      the optimizer type e.g. "Adam" or "SGD"
         model_params:    the model parameters to be optimized
-        hparams:         the hyperparameters (dict type) for usage with learning rate 
+        hparams:         the hyperparameters (dict type) for usage with learning rate
 
     Outputs:
         optimizer:       a PyTorch optimizer object to be used in training
@@ -168,6 +178,8 @@ def build_optimizer(optim_type, model_params, hparams):
 """
 5. Training loop for model
 """
+
+
 def train(train_dataloader, model, loss_fn, optimizer):
     """
     Train your neural network.
@@ -195,6 +207,8 @@ def train(train_dataloader, model, loss_fn, optimizer):
 """
 6. Testing loop for model
 """
+
+
 def test(test_dataloader, model):
     """
     This part is optional.
@@ -221,9 +235,12 @@ def test(test_dataloader, model):
     # print("Test loss:", test_loss)
     raise NotImplementedError("You need to write this part!")
 
+
 """
 7. Full model training and testing
 """
+
+
 def run_model():
     """
     The autograder will call this function and measure the accuracy of the returned model.
@@ -236,4 +253,3 @@ def run_model():
         model:              trained model
     """
     raise NotImplementedError("You need to write this part!")
-    
