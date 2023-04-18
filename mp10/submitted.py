@@ -9,6 +9,7 @@ from itertools import product
 from typing import Final, TypeAlias
 
 import numpy as np
+from numpy import ndarray
 
 from utils import GridWorld
 
@@ -16,6 +17,7 @@ Location: TypeAlias = tuple[int, int]
 Move: TypeAlias = tuple[int, int]
 
 epsilon = 1e-3
+moves: list[Move] = [(0, -1), (-1, 0), (0, 1), (1, 0)]
 
 
 def compute_transition_matrix(model: GridWorld):
@@ -31,8 +33,6 @@ def compute_transition_matrix(model: GridWorld):
 
     P = np.zeros((M, N, 4, M, N))
     loc_combinations: list[Location] = list(product(range(M), range(N)))
-
-    moves: list[Move] = [(0, -1), (-1, 0), (0, 1), (1, 0)]
 
     for r, c in loc_combinations:
         if model.T[r, c] or model.W[r, c]:
@@ -61,7 +61,7 @@ def compute_transition_matrix(model: GridWorld):
     return P
 
 
-def update_utility(model: GridWorld, P: nda, U_current):
+def update_utility(model: GridWorld, P: ndarray, U_current: ndarray):
     """
     Parameters:
     model - The MDP model returned by load_MDP()
@@ -71,10 +71,34 @@ def update_utility(model: GridWorld, P: nda, U_current):
     Output:
     U_next - The updated utility function, which is an M x N array
     """
-    raise RuntimeError("You need to write this part!")
+    gamma: ndarray = model.gamma
+    loc_combinations: list[Location] = list(product(range(model.M), range(model.N)))
+
+    U_next = np.zeros((model.M, model.N))
+
+    for s in loc_combinations:
+        util_sums: list[float] = []
+        for a, _ in enumerate(moves):
+            S_next: list[Location] = [
+                (s[0] + move[0], s[1] + move[1])
+                for move in moves
+                if s[0] + move[0] >= 0
+                and s[0] + move[0] < model.M
+                and s[1] + move[1] >= 0
+                and s[1] + move[1] < model.N
+            ]
+            # print(s, S_next)
+            util_sum = np.sum(
+                [P[s[0], s[1], a, s_next[0], s_next[1]] for s_next in S_next]
+            )
+            util_sums.append(util_sum)
+
+        U_next[s[0], s[1]] = model.R[s[0], s[1]] + gamma * np.max(util_sums)
+    print(U_next)
+    return U_next
 
 
-def value_iteration(model):
+def value_iteration(model: GridWorld):
     """
     Parameters:
     model - The MDP model returned by load_MDP()
@@ -82,7 +106,16 @@ def value_iteration(model):
     Output:
     U - The utility function, which is an M x N array
     """
-    raise RuntimeError("You need to write this part!")
+    P: ndarray = compute_transition_matrix(model)
+    U: ndarray = np.zeros((model.M, model.N))
+
+    for _ in range(100):
+        U_current = update_utility(model, P, U)
+        # if np.max(np.abs(U - U_current)) < epsilon:
+        #     break
+        U = U_current
+
+    return U
 
 
 if __name__ == "__main__":
