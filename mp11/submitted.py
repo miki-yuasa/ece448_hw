@@ -73,7 +73,7 @@ class q_learner:
             ),
             dtype=np.int64,
         )
-        self._actions: list[int] = [1, 0, -1]
+        self._actions: list[int] = [0, 1, -1]
 
     def report_exploration_counts(self, state: list[int]) -> list[int]:
         """
@@ -175,11 +175,12 @@ class q_learner:
         @return:
         None
         """
-        self.Q[state[0], state[1], state[2], state[3], state[4], action] = self.Q[
-            state[0], state[1], state[2], state[3], state[4], action
+        action_index: int = self._actions.index(action)
+        self.Q[state[0], state[1], state[2], state[3], state[4], action_index] = self.Q[
+            state[0], state[1], state[2], state[3], state[4], action_index
         ] + self._alpha * (
             self.q_local(reward, newstate)
-            - self.Q[state[0], state[1], state[2], state[3], state[4], action]
+            - self.Q[state[0], state[1], state[2], state[3], state[4], action_index]
         )
 
     def save(self, filename: str):
@@ -256,15 +257,16 @@ class q_learner:
         unexplored_action: int | None = self.choose_unexplored_action(state)
         if unexplored_action is not None:
             action = unexplored_action
-        elif np.random.random() < self._epsilon:
-            action = np.random.choice(self._actions)
         else:
-            action = self.exploit(state)[0]
+            action = np.random.choice(
+                [random.choice(self._actions), self.exploit(state)[0]],
+                p=[self._epsilon, 1 - self._epsilon],
+            )
         return action
 
 
 class deep_q:
-    def __init__(self, alpha, epsilon, gamma, nfirst):
+    def __init__(self, alpha: float, epsilon: float, gamma: float, nfirst: int) -> None:
         """
         Create a new deep_q learner.
         Your q_learner object should store the provided values of alpha,
@@ -281,7 +283,11 @@ class deep_q:
         @return:
         None
         """
-        raise RuntimeError("You need to write this!")
+        self._alpha: float = alpha
+        self._epsilon: float = epsilon
+        self._gamma: float = gamma
+        self._nfirst: int = nfirst
+        self._actions: list[int] = [-1, 0, 1]
 
     def act(self, state):
         """
