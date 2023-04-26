@@ -124,7 +124,7 @@ class q_learner:
             ]
             action: int = random.choice(under_explored)
             self.N[state[0], state[1], state[2], state[3], state[4], action] += 1
-            return action
+            return self._actions[action]
 
     def report_q(self, state: list[int]) -> ndarray:
         """
@@ -233,7 +233,7 @@ class q_learner:
             self.report_q(state)
         )
 
-    def act(self, state):
+    def act(self, state: list[int]) -> int:
         """
         Decide what action to take in the current state.
         If any action has been taken less than nfirst times, then choose one of those
@@ -252,7 +252,15 @@ class q_learner:
         0 if the paddle should be stationary
         1 if the paddle should move downward
         """
-        raise RuntimeError("You need to write this!")
+        action: int
+        unexplored_action: int | None = self.choose_unexplored_action(state)
+        if unexplored_action is not None:
+            action = unexplored_action
+        elif np.random.random() < self._epsilon:
+            action = np.random.choice(self._actions)
+        else:
+            action = self.exploit(state)[0]
+        return action
 
 
 class deep_q:
