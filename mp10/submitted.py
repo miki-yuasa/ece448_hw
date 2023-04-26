@@ -35,7 +35,7 @@ def compute_transition_matrix(model: GridWorld):
     loc_combinations: list[Location] = list(product(range(M), range(N)))
 
     for r, c in loc_combinations:
-        if model.T[r, c] or model.W[r, c]:
+        if model.T[r, c]:
             continue
         else:
             for a, correct_move in enumerate(moves):
@@ -52,11 +52,11 @@ def compute_transition_matrix(model: GridWorld):
                         or c + possible_move[1] >= N
                         or model.W[r + possible_move[0], c + possible_move[1]]
                     ):
-                        P[r, c, a, r, c] = model.D[r, c, i]
+                        P[r, c, a, r, c] += model.D[r, c, i]
                     else:
                         P[
                             r, c, a, r + possible_move[0], c + possible_move[1]
-                        ] = model.D[r, c, i]
+                        ] += model.D[r, c, i]
 
     return P
 
@@ -79,22 +79,26 @@ def update_utility(model: GridWorld, P: ndarray, U_current: ndarray):
     for s in loc_combinations:
         util_sums: list[float] = []
         for a, _ in enumerate(moves):
-            S_next: list[Location] = [
-                (s[0] + move[0], s[1] + move[1])
-                for move in moves
-                if s[0] + move[0] >= 0
-                and s[0] + move[0] < model.M
-                and s[1] + move[1] >= 0
-                and s[1] + move[1] < model.N
-            ]
+            # S_next: list[Location] = [
+            #     (s[0] + move[0], s[1] + move[1])
+            #     for move in moves
+            #     if s[0] + move[0] >= 0
+            #     and s[0] + move[0] < model.M
+            #     and s[1] + move[1] >= 0
+            #     and s[1] + move[1] < model.N
+            # ]
             # print(s, S_next)
             util_sum = np.sum(
-                [P[s[0], s[1], a, s_next[0], s_next[1]] for s_next in S_next]
+                [
+                    P[s[0], s[1], a, s_next[0], s_next[1]]
+                    * U_current[s_next[0], s_next[1]]
+                    for s_next in loc_combinations
+                ]
             )
             util_sums.append(util_sum)
 
-        U_next[s[0], s[1]] = model.R[s[0], s[1]] + gamma * np.max(util_sums)
-    print(U_next)
+        U_next[s[0], s[1]] += model.R[s[0], s[1]] + gamma * np.max(util_sums)
+    # print(U_next)
     return U_next
 
 
@@ -109,10 +113,10 @@ def value_iteration(model: GridWorld):
     P: ndarray = compute_transition_matrix(model)
     U: ndarray = np.zeros((model.M, model.N))
 
-    for _ in range(100):
+    while True:
         U_current = update_utility(model, P, U)
-        # if np.max(np.abs(U - U_current)) < epsilon:
-        #     break
+        if np.max(np.abs(U - U_current)) < epsilon:
+            break
         U = U_current
 
     return U
