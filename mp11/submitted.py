@@ -94,7 +94,7 @@ class q_learner:
 
         return explored_count
 
-    def choose_unexplored_action(self, state):
+    def choose_unexplored_action(self, state: list[int]) -> int | None:
         """
         Choose an action that has been explored less than nfirst times.
         If many actions are underexplored, you should choose uniformly
@@ -113,7 +113,17 @@ class q_learner:
           Otherwise, choose one uniformly at random from those w/count less than n_explore.
           When you choose an action, you should increment its count in your counter table.
         """
-        raise RuntimeError("You need to write this!")
+        explored_count: list[int] = self.report_exploration_counts(state)
+
+        if min(explored_count) >= self._nfirst:
+            return None
+        else:
+            under_explored: list[int] = [
+                i for i, x in enumerate(explored_count) if x < self._nfirst
+            ]
+            action: int = random.choice(under_explored)
+            self.N[state[0], state[1], state[2], state[3], state[4], action] += 1
+            return action
 
     def report_q(self, state):
         """
