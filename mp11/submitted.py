@@ -181,7 +181,7 @@ class q_learner:
             - self.Q[state[0], state[1], state[2], state[3], state[4], action]
         )
 
-    def save(self, filename):
+    def save(self, filename: str):
         """
         Save your Q and N tables to a file.
         This can save in any format you like, as long as your "load"
@@ -193,9 +193,10 @@ class q_learner:
         @return:
         None
         """
-        raise RuntimeError("You need to write this!")
+        with open(filename, "wb") as f:
+            np.savez(f, Q=self.Q, N=self.N)
 
-    def load(self, filename):
+    def load(self, filename: str):
         """
         Load the Q and N tables from a file.
         This should load from whatever file format your save function
@@ -207,7 +208,10 @@ class q_learner:
         @return:
         None
         """
-        raise RuntimeError("You need to write this!")
+        with open(filename, "rb") as f:
+            data = np.load(f)
+            self.Q = data["Q"]
+            self.N = data["N"]
 
     def exploit(self, state):
         """
