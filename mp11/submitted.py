@@ -158,7 +158,7 @@ class q_learner:
         """
         return reward + self._gamma * max(self.report_q(newstate))
 
-    def learn(self, state, action, reward, newstate):
+    def learn(self, state: list[int], action: int, reward: float, newstate: list[int]):
         """
         Update the internal Q-table on the basis of an observed
         state, action, reward, newstate sequence.
@@ -174,7 +174,12 @@ class q_learner:
         @return:
         None
         """
-        raise RuntimeError("You need to write this!")
+        self.Q[state[0], state[1], state[2], state[3], state[4], action] = self.Q[
+            state[0], state[1], state[2], state[3], state[4], action
+        ] + self._alpha * (
+            self.q_local(reward, newstate)
+            - self.Q[state[0], state[1], state[2], state[3], state[4], action]
+        )
 
     def save(self, filename):
         """
