@@ -8,6 +8,7 @@ function's docstring.
 from typing import Final
 import random
 import numpy as np
+from numpy import ndarray
 import torch
 import torch.nn as nn
 
@@ -51,7 +52,7 @@ class q_learner:
         self._gamma: Final = gamma
         self._nfirst: Final = nfirst
         self._state_cardinality: Final = state_cardinality
-        self.Q = np.zeros(
+        self.Q: ndarray = np.zeros(
             (
                 state_cardinality[0],
                 state_cardinality[1],
@@ -61,7 +62,7 @@ class q_learner:
                 3,
             )
         )
-        self.N = np.zeros(
+        self.N: ndarray = np.zeros(
             (
                 state_cardinality[0],
                 state_cardinality[1],
@@ -69,10 +70,11 @@ class q_learner:
                 state_cardinality[3],
                 state_cardinality[4],
                 3,
-            )
+            ),
+            dtype=np.int64,
         )
 
-    def report_exploration_counts(self, state):
+    def report_exploration_counts(self, state: list[int]) -> list[int]:
         """
         Check to see how many times each action has been explored in this state.
         @params:
@@ -86,7 +88,11 @@ class q_learner:
           number of times that each action has been explored from this state.
           The mapping from actions to integers is up to you, but there must be three of them.
         """
-        raise RuntimeError("You need to write this!")
+        explored_count = (
+            self.N[state[0], state[1], state[2], state[3], state[4]].flatten().tolist()
+        )
+
+        return explored_count
 
     def choose_unexplored_action(self, state):
         """
