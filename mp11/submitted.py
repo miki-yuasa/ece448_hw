@@ -125,7 +125,7 @@ class q_learner:
             self.N[state[0], state[1], state[2], state[3], state[4], action] += 1
             return action
 
-    def report_q(self, state):
+    def report_q(self, state: list[int]) -> ndarray:
         """
         Report the current Q values for the given state.
         @params:
@@ -139,7 +139,7 @@ class q_learner:
           reward plus expected future utility of each of the three actions.
           The mapping from actions to integers is up to you, but there must be three of them.
         """
-        raise RuntimeError("You need to write this!")
+        return self.Q[state[0], state[1], state[2], state[3], state[4]]
 
     def q_local(self, reward, newstate):
         """
