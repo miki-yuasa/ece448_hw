@@ -73,6 +73,7 @@ class q_learner:
             ),
             dtype=np.int64,
         )
+        self._actions: list[int] = [1, 0, -1]
 
     def report_exploration_counts(self, state: list[int]) -> list[int]:
         """
@@ -213,7 +214,7 @@ class q_learner:
             self.Q = data["Q"]
             self.N = data["N"]
 
-    def exploit(self, state):
+    def exploit(self, state: list[int]) -> tuple[int, float]:
         """
         Return the action that has the highest Q-value for the current state, and its Q-value.
         @params:
@@ -228,7 +229,9 @@ class q_learner:
         Q (scalar float):
           The Q-value of the selected action
         """
-        raise RuntimeError("You need to write this!")
+        return self._actions[np.argmax(self.report_q(state))], np.max(
+            self.report_q(state)
+        )
 
     def act(self, state):
         """
