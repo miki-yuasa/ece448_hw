@@ -141,7 +141,7 @@ class q_learner:
         """
         return self.Q[state[0], state[1], state[2], state[3], state[4]]
 
-    def q_local(self, reward, newstate):
+    def q_local(self, reward: float, newstate: list[int]):
         """
         The update to Q estimated from a single step of game play:
         reward plus gamma times the max of Q[newstate, ...].
@@ -156,7 +156,7 @@ class q_learner:
         @return:
         Q_local (scalar float): the local value of Q
         """
-        raise RuntimeError("You need to write this!")
+        return reward + self._gamma * max(self.report_q(newstate))
 
     def learn(self, state, action, reward, newstate):
         """
